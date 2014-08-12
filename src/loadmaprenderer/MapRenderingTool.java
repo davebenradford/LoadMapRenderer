@@ -41,8 +41,6 @@ import java.text.AttributedString;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -56,6 +54,19 @@ import whitebox.geospatialfiles.RasterLayerInfo;
 import whitebox.geospatialfiles.VectorLayerInfo;
 import whitebox.geospatialfiles.WhiteboxRasterBase;
 import whitebox.geospatialfiles.shapefile.*;
+import static whitebox.geospatialfiles.shapefile.ShapeType.MULTIPATCH;
+import static whitebox.geospatialfiles.shapefile.ShapeType.MULTIPOINT;
+import static whitebox.geospatialfiles.shapefile.ShapeType.MULTIPOINTM;
+import static whitebox.geospatialfiles.shapefile.ShapeType.MULTIPOINTZ;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POINT;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POINTM;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POINTZ;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POLYGON;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POLYGONM;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POLYGONZ;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POLYLINE;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POLYLINEM;
+import static whitebox.geospatialfiles.shapefile.ShapeType.POLYLINEZ;
 import whitebox.interfaces.CartographicElement;
 import whitebox.interfaces.MapLayer;
 import whitebox.interfaces.WhiteboxPluginHost;
@@ -65,7 +76,6 @@ import whitebox.structures.XYPoint;
 import whitebox.utilities.OSFinder;
 import whiteboxgis.PaletteImage;
 import whiteboxgis.StatusBar;
-import whiteboxgis.WhiteboxGui;
 import whiteboxgis.user_interfaces.ModifyPixel;
 
 /**
@@ -96,7 +106,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
     public static final int RESIZE_MODE_SW = 7;
     private int myResizeMode = -1;
     public MapInfo map = null;
-    private StatusBar status = null;
+    public StatusBar status = null;
     private JTextField scaleText = null;
     private WhiteboxPluginHost host = null;
     private Cursor zoomCursor = null;
@@ -117,10 +127,10 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
     public static final int CARTO_ELEMENT_LEGEND = 2;
     public static final int CARTO_ELEMENT_TITLE = 3;
     private boolean printingMap = false;
-    private final BoundingBox mapExtent = new BoundingBox();
-    private final Color selectedFeatureColour = Color.RED;
-    private final Color selectionBoxColour = Color.GRAY;
-    private final double ppm = java.awt.Toolkit.getDefaultToolkit().getScreenResolution() * 39.3701;
+    private BoundingBox mapExtent = new BoundingBox();
+    private Color selectedFeatureColour = Color.RED;
+    private Color selectionBoxColour = Color.GRAY;
+    private double ppm = java.awt.Toolkit.getDefaultToolkit().getScreenResolution() * 39.3701;
 
     public MapRenderingTool() {
         init();
@@ -228,13 +238,13 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
             });
 
         } catch (UnsupportedEncodingException | IndexOutOfBoundsException | HeadlessException e) {
-            Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, e);
+            System.err.println(e);
         }
     }
 
     public void setHost(WhiteboxPluginHost host) {
         this.host = host;
-    } 
+    }
 
     public MapInfo getMapInfo() {
         return map;
@@ -295,16 +305,16 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
             }
         } else {
             digitizing = true;
-            boolean confirm = false;
             if (map.getCartographicElement(whichCartoElement) instanceof MapArea) {
                 MapArea mapArea = (MapArea) map.getCartographicElement(whichCartoElement);
                 if (map.getActiveMapAreaElementNumber() != mapArea.getElementNumber()) {
-                    confirm = true;
+                    return;
                 }
-                if(!confirm) {
-                    if (mapArea.getActiveLayer().getLayerType() != MapLayer.MapLayerType.VECTOR) {
-                    }
+                if (mapArea.getActiveLayer().getLayerType() != MapLayer.MapLayerType.VECTOR) {
+                    return;
                 }
+//                VectorLayerInfo vli = (VectorLayerInfo) mapArea.getActiveLayer();
+//                vli.openNewFeature();
             }
 
         }
@@ -430,7 +440,6 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
             printingMap = false;
             return true;
         } catch (IOException e) {
-            Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, e);
             return false;
         }
     }
@@ -650,7 +659,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
             }
 
         } catch (Exception e) {
-            Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, e);
+            host.logException("Error in MapRenderer", e);
+            host.showFeedback(e.getMessage());
         } finally {
             g.dispose();
             g2.dispose();
@@ -735,7 +745,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
 //            g2.draw(polyline);
 
             double scaling = mapScale.getScale();
-            if (scaling > 0 && scaling != Double.NaN && scaling < Double.POSITIVE_INFINITY) { 
+            if (scaling > 0 && scaling != Double.NaN && scaling < Double.POSITIVE_INFINITY) {
                 if (mapScale.getUpperLeftY() == -32768) {
                     mapScale.setUpperLeftY((int) (pageHeight - margin - mapScale.getHeight()));
                     mapScale.setUpperLeftX((int) (margin));
@@ -2951,10 +2961,10 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
     }
 
     @Override
-    public void mouseClicked(MouseEvent me) {
-        int clickCount = me.getClickCount();
-        int button = me.getButton();
-        boolean isPopupTrigger = me.isPopupTrigger();
+    public void mouseClicked(MouseEvent e) {
+        int clickCount = e.getClickCount();
+        int button = e.getButton();
+        boolean isPopupTrigger = e.isPopupTrigger();
 
         if (digitizing && digitizingNewFeature) {
             if (map.getCartographicElement(whichCartoElement) instanceof MapArea) {
@@ -2967,8 +2977,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 }
                 BoundingBox currentExtent = mapArea.getCurrentMapExtent();
                 if (mapArea.isVisible() && currentExtent.getMinY() != currentExtent.getMaxY()) {
-                    int x = (int) ((me.getX() - pageLeft) / scale);
-                    int y = (int) ((me.getY() - pageTop) / scale);
+                    int x = (int) ((e.getX() - pageLeft) / scale);
+                    int y = (int) ((e.getY() - pageTop) / scale);
 
                     int referenceMarkSize = mapArea.getReferenceMarksSize();
                     int viewAreaULX = mapArea.getUpperLeftX() + referenceMarkSize;
@@ -2998,34 +3008,40 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                     mapX = currentExtent.getMinX() + (x - viewAreaULX) / viewAreaWidth * xRange;
 
                     distPoints.add(new XYPoint(mapX, mapY));
-                    updateStatus(me, (MapArea) map.getCartographicElement(whichCartoElement));
+                    updateStatus(e, (MapArea) map.getCartographicElement(whichCartoElement));
 
                     VectorLayerInfo vli = (VectorLayerInfo) mapArea.getActiveLayer();
                     if (clickCount == 2) {
                         try {
                             vli.closeNewFeature(mapX, mapY);
                             distPoints.clear();
-                            if (host instanceof WhiteboxGui) {
-                                WhiteboxGui wb = (WhiteboxGui) host;
+                            if (host instanceof WhiteboxGuiClone) {
+                                WhiteboxGuiClone wb = (WhiteboxGuiClone) host;
                                 wb.digitizeNewFeature();
                             }
-                        } catch(Exception e) {
-                            Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, e);
+                        } catch (Exception ex) {
+                            host.logException("Error adding new digitized point", ex);
+                            host.showFeedback("An error has been enountered while digitizing.");
                         }
                     } else {
                         try {
                             vli.addNodeToNewFeature(mapX, mapY);
-                        } catch (Exception e) {
-                            Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, e);
+//                                host.showFeedback("An error has been enountered while digitizing.");
+//                            }
+                        } catch (Exception ex) {
+                            host.logException("Error adding new digitized point", ex);
+                            host.showFeedback("An error has been enountered while digitizing.");
                         }
                     }
                     if (vli.getShapeType().getBaseType() == ShapeType.POINT) {
                         distPoints.clear();
-                        if (host instanceof WhiteboxGui) {
-                            WhiteboxGui wb = (WhiteboxGui) host;
+                        if (host instanceof WhiteboxGuiClone) {
+                            WhiteboxGuiClone wb = (WhiteboxGuiClone) host;
                             wb.digitizeNewFeature();
                         }
                     }
+                    host.refreshMap(false);
+
                 }
             }
 
@@ -3034,8 +3050,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 && backgroundMouseMode != MOUSE_MODE_ZOOM
                 && backgroundMouseMode != MOUSE_MODE_ZOOMOUT
                 && !modifyingPixels) {
-            if (host instanceof WhiteboxGui) { //SwingUtilities.getRoot(this) instanceof WhiteboxGui) {
-                WhiteboxGui wb = (WhiteboxGui) host;
+            if (host instanceof WhiteboxGuiClone) { //SwingUtilities.getRoot(this) instanceof WhiteboxGuiClone) {
+                WhiteboxGuiClone wb = (WhiteboxGuiClone) host;
                 wb.showMapProperties(whichCartoElement);
             }
 
@@ -3043,18 +3059,18 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 && button != 3 && !isPopupTrigger
                 && !usingDistanceTool && !modifyingPixels) {
             if (myMode != MOUSE_MODE_MAPAREA) {
-                int x = (int) ((me.getX() - pageLeft) / scale);
-                int y = (int) ((me.getY() - pageTop) / scale);
+                int x = (int) ((e.getX() - pageLeft) / scale);
+                int y = (int) ((e.getY() - pageTop) / scale);
                 map.zoom(x, y, (1 + clickCount * 0.15));
             } else {
                 if (map.getCartographicElement(whichCartoElement) instanceof MapArea) {
                     MapArea mapArea = (MapArea) map.getCartographicElement(whichCartoElement);
                     if (mapArea.isVisible() && mapArea.getNumLayers() > 0) {
-                        XYPoint point = getMapXYCoordinates(me.getX(), me.getY(), mapArea);
+                        XYPoint point = getMapXYCoordinates(e.getX(), e.getY(), mapArea);
                         mapArea.naturalZoom(point.x, point.y, (1 + clickCount * 0.15));
                     } else {
-                        int x = (int) ((me.getX() - pageLeft) / scale);
-                        int y = (int) ((me.getY() - pageTop) / scale);
+                        int x = (int) ((e.getX() - pageLeft) / scale);
+                        int y = (int) ((e.getY() - pageTop) / scale);
                         map.zoom(x, y, (1 + clickCount * 0.15));
                     }
                 }
@@ -3063,18 +3079,18 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 && button != 3 && !isPopupTrigger
                 && !usingDistanceTool && !modifyingPixels) {
             if (myMode != MOUSE_MODE_MAPAREA) {
-                int x = (int) ((me.getX() - pageLeft) / scale);
-                int y = (int) ((me.getY() - pageTop) / scale);
+                int x = (int) ((e.getX() - pageLeft) / scale);
+                int y = (int) ((e.getY() - pageTop) / scale);
                 map.zoom(x, y, (1 - clickCount * 0.15));
             } else {
                 if (map.getCartographicElement(whichCartoElement) instanceof MapArea) {
                     MapArea mapArea = (MapArea) map.getCartographicElement(whichCartoElement);
                     if (mapArea.isVisible() && mapArea.getNumLayers() > 0) {
-                        XYPoint point = getMapXYCoordinates(me.getX(), me.getY(), mapArea);
+                        XYPoint point = getMapXYCoordinates(e.getX(), e.getY(), mapArea);
                         mapArea.naturalZoom(point.x, point.y, (1 - clickCount * 0.15));
                     } else {
-                        int x = (int) ((me.getX() - pageLeft) / scale);
-                        int y = (int) ((me.getY() - pageTop) / scale);
+                        int x = (int) ((e.getX() - pageLeft) / scale);
+                        int y = (int) ((e.getY() - pageTop) / scale);
                         map.zoom(x, y, (1 - clickCount * 0.15));
                     }
                 }
@@ -3085,8 +3101,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 MapArea mapArea = (MapArea) map.getCartographicElement(whichCartoElement);
                 BoundingBox currentExtent = mapArea.getCurrentMapExtent();
                 if (mapArea.isVisible() && currentExtent.getMinY() != currentExtent.getMaxY()) {
-                    int x = (int) ((me.getX() - pageLeft) / scale);
-                    int y = (int) ((me.getY() - pageTop) / scale);
+                    int x = (int) ((e.getX() - pageLeft) / scale);
+                    int y = (int) ((e.getY() - pageTop) / scale);
 
                     int referenceMarkSize = mapArea.getReferenceMarksSize();
                     int viewAreaULX = mapArea.getUpperLeftX() + referenceMarkSize;
@@ -3150,8 +3166,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 }
                 BoundingBox currentExtent = mapArea.getCurrentMapExtent();
                 if (mapArea.isVisible() && currentExtent.getMinY() != currentExtent.getMaxY()) {
-                    int x = (int) ((me.getX() - pageLeft) / scale);
-                    int y = (int) ((me.getY() - pageTop) / scale);
+                    int x = (int) ((e.getX() - pageLeft) / scale);
+                    int y = (int) ((e.getY() - pageTop) / scale);
 
                     int referenceMarkSize = mapArea.getReferenceMarksSize();
                     int viewAreaULX = mapArea.getUpperLeftX() + referenceMarkSize;
@@ -3181,7 +3197,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                     mapX = currentExtent.getMinX() + (x - viewAreaULX) / viewAreaWidth * xRange;
 
                     distPoints.add(new XYPoint(mapX, mapY));
-                    updateStatus(me, (MapArea) map.getCartographicElement(whichCartoElement));
+                    updateStatus(e, (MapArea) map.getCartographicElement(whichCartoElement));
                     host.refreshMap(true);
                 }
 
@@ -3191,10 +3207,10 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 && button != 3 && !isPopupTrigger) {
             boolean isSelected = map.getCartographicElement(whichCartoElement).isSelected();
             if (!isSelected) {
-                if (!me.isShiftDown()) {
+                if (!e.isShiftDown()) {
                     map.deslectAllCartographicElements();
                 }
-                WhiteboxGui wb = (WhiteboxGui) host;
+                WhiteboxGuiClone wb = (WhiteboxGuiClone) host;
                 wb.setCartoElementToolbarVisibility(true);
                 map.getCartographicElement(whichCartoElement).setSelected(true);
                 this.setCursor(panCursor);
@@ -3228,7 +3244,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 }
             }
             if (map.howManyElementsAreSelected() == 0) {
-                WhiteboxGui wb = (WhiteboxGui) host;
+                WhiteboxGuiClone wb = (WhiteboxGuiClone) host;
                 if (wb.isHideAlignToolbar()) {
                     wb.setCartoElementToolbarVisibility(false);
                 }
@@ -3245,7 +3261,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 MapArea mapArea = (MapArea) map.getCartographicElement(whichCartoElement);
                 if (mapArea != null) {
                     mapArea.selectVectorFeatures(mapX, mapY);
-                    updateStatus(me, mapArea);
+                    updateStatus(e, mapArea);
                 }
             }
         } else if (clickCount == 2 && usingDistanceTool) {
@@ -3277,11 +3293,11 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                 popupMenu.add(new whitebox.ui.carto_properties.MapImagePropertyGrid((MapImage) ce, host));
             }
             popupMenu.setPreferredSize(new Dimension(300, popupMenu.getPreferredSize().height));
-            popupMenu.show(me.getComponent(),
-                    me.getX(), me.getY());
+            popupMenu.show(e.getComponent(),
+                    e.getX(), e.getY());
         } else {
             map.deslectAllCartographicElements();
-            WhiteboxGui wb = (WhiteboxGui) host;
+            WhiteboxGuiClone wb = (WhiteboxGuiClone ) host;
             if (wb.isHideAlignToolbar()) {
                 wb.setCartoElementToolbarVisibility(false);
             }
