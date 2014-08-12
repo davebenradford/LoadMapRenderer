@@ -144,6 +144,13 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private int ptbTabsIndex = 0;
     private int mtbTabsIndex = 0;
     
+    //Map Boolean Values
+    private boolean damMap = false;
+    private boolean pondMap = false;
+    private boolean grazeMap = false;
+    private boolean tillMap = false;
+    private boolean forageMap = false;
+    
     private int qlTabsIndex = 0;
     private int[] selectedMapAndLayer = new int[3];
     private boolean linkAllOpenMaps = false;
@@ -2313,18 +2320,93 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 wb.getGlassPane().setVisible(true);
                 webs.remove(projPanel);
                 webs.add(scenPanel);
-                /*
-                projPanel.setVisible(false);
-                scenPanel.setVisible(true);
-                //scenPanel.requestFocusInWindow();
-                basicScen.setVisible(true);
-                bmpSection.setVisible(true);
-                controlSection.setVisible(true);
-                */
                 wb.validate();
             } catch (ClassNotFoundException | SQLException | IOException e) {
                 Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, e);
             }
+        }
+    }
+    
+    private class damsListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+            mtb.setSelectedIndex(1);
+            if(!damMap) {
+                newMap("Small Dam BMP");
+                addLayer(spatialDirectory + "subbasin.shp");
+                addLayer(spatialDirectory + "small_dam.shp");
+                damMap = true;
+            }
+            else {
+                openMap("Small Dam BMP");
+            }
+            wb.validate();
+        }
+    }
+    
+    private class pondsListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+            mtb.setSelectedIndex(1);
+            if(!pondMap) {
+                newMap("Holding Ponds BMP");
+                addLayer(spatialDirectory + "subbasin.shp");
+                addLayer(spatialDirectory + "cattle_yard.shp");
+                pondMap = true;
+            }
+            else {
+                openMap("Holding Pond BMP");
+            }
+            wb.validate();
+        }
+    }
+    
+    private class grazingListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+            mtb.setSelectedIndex(1);
+            if(!grazeMap) {
+                newMap("Grazing Area BMP");
+                addLayer(spatialDirectory + "subbasin.shp");
+                addLayer(spatialDirectory + "grazing.shp");
+                grazeMap = true;
+            }
+            else {
+                openMap("Grazing Area BMP");
+            }
+            wb.validate();
+        }
+    }
+    
+    private class tillageListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+            mtb.setSelectedIndex(1);
+            if(!tillMap) {
+                newMap("Tillage BMP");
+                addLayer(spatialDirectory + "land2010_by_land_id.shp");
+                tillMap = true;
+            }
+            else {
+                openMap("Tillage BMP");
+            }
+            wb.validate();
+        }
+    }
+    
+    private class forageListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+            mtb.setSelectedIndex(1);
+            if(!forageMap) {
+                newMap("Forage BMP");
+                addLayer(spatialDirectory + "land2010_by_land_id.shp");
+                forageMap = true;
+            }
+            else {
+                openMap("Forage BMP");
+            }
+            wb.validate();
         }
     }
     
@@ -2434,8 +2516,17 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         
         JButton scenButton = createScenarioPanelButton(new JButton(), "Builds the Base Historical and Conventional Scenarios.", new baseScenarioListener(), null);
         scenButton.setLayout(new BorderLayout());
-        scenButton.add(BorderLayout.CENTER, new JLabel("Create Base", SwingConstants.CENTER));
-        scenButton.add(BorderLayout.CENTER, new JLabel("Scenarios", SwingConstants.CENTER));
+        scenButton.setMargin(new Insets(2, 2, 2, 2));
+        scenButton.setPreferredSize(new Dimension(72, 54));
+        JLabel top = new JLabel(" Create  ", SwingConstants.CENTER);
+        top.setVerticalAlignment(SwingConstants.BOTTOM);
+        JLabel mid = new JLabel("  Base   ", SwingConstants.CENTER);
+        mid.setVerticalAlignment(SwingConstants.CENTER);
+        JLabel bot = new JLabel("Scenarios", SwingConstants.CENTER);
+        bot.setVerticalAlignment(SwingConstants.TOP);
+        scenButton.add(BorderLayout.NORTH, top);
+        scenButton.add(BorderLayout.CENTER, mid);
+        scenButton.add(BorderLayout.SOUTH, bot);
         
         gbc = setGbc(new Insets(16, 32, 16, 16), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 3, 0, 0, 0.0, 0.25);
         scenButton.setContentAreaFilled(true);
@@ -2476,23 +2567,28 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         
         bmpSection = createPanel(new JPanel(), "BMPs", true);
         
-        JButton btnDamSc = createScenarioPanelButton(new JButton("Small Dam", new ImageIcon(graphicsDirectory + "draw_polygon_curves.png")), "Select Small Dams", null, null);
+        JButton btnDamSc = createScenarioPanelButton(new JButton("Small Dam", new ImageIcon(graphicsDirectory + "draw_polygon_curves.png")),
+                                                     "Select Small Dams", new damsListener(), null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnDamSc, gbc);
         
-        JButton btnPondSc = createScenarioPanelButton(new JButton("Holding Pond", new ImageIcon(graphicsDirectory + "button.png")), "Select Holding Ponds", null, null);
+        JButton btnPondSc = createScenarioPanelButton(new JButton("Holding Pond", new ImageIcon(graphicsDirectory + "button.png")),
+                                                      "Select Holding Ponds", new pondsListener(), null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnPondSc, gbc);
         
-        JButton btnGrazeSc = createScenarioPanelButton(new JButton("Grazing", new ImageIcon(graphicsDirectory + "cow_head_32x32.png")), "Select Grazing Areas", null, null);
+        JButton btnGrazeSc = createScenarioPanelButton(new JButton("Grazing", new ImageIcon(graphicsDirectory + "cow_head_32x32.png")),
+                                                       "Select Grazing Areas", new grazingListener(), null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 2, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnGrazeSc, gbc);
 
-        JButton btnTillSc = createScenarioPanelButton(new JButton("Tillage", new ImageIcon(graphicsDirectory + "tractor.png")), "Select Tillage Areas", null, null);
+        JButton btnTillSc = createScenarioPanelButton(new JButton("Tillage", new ImageIcon(graphicsDirectory + "tractor.png")),
+                                                      "Select Tillage Areas", new tillageListener(), null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 3, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnTillSc, gbc);
 
-        JButton btnForageSc = createScenarioPanelButton(new JButton("Forage", new ImageIcon(graphicsDirectory + "grass.png")), "Select Foraging Areas", null, null);
+        JButton btnForageSc = createScenarioPanelButton(new JButton("Forage", new ImageIcon(graphicsDirectory + "grass.png")),
+                                                        "Select Foraging Areas", new forageListener(), null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 4, 0, 1, 1, 1.0, 0.0);
         bmpSection.add(btnForageSc, gbc);
         
@@ -2617,7 +2713,9 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             status.setMessage(" " + plugInfo.size() + " plugins were located");
 
             splitPane2.setDividerLocation(0.75); //splitterToolboxLoc);
-
+            
+            closeMap();
+            
             pack();
         } catch (SecurityException | IllegalArgumentException e) {
             logger.log(Level.SEVERE, "WhiteboxGui.createGui", e);
