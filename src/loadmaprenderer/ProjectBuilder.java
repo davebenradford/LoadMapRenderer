@@ -1,6 +1,8 @@
 package loadmaprenderer;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
@@ -9,46 +11,44 @@ import java.util.logging.Level;
 import static loadmaprenderer.WhiteboxGuiClone.logger;
 
 public class ProjectBuilder {
-    private long modified;
     private String spatialDirectory;
-    private String applicationDirectory;
-    private String watershedDirectory;
-    private String projectDirectory;
     private String txtInOutDirectory;
     private String scenarioDirectory;
     private String baseDirectory;
     private String userDirectory;
-    
-    /**
-     * 
-     * @param args 
-     */
-    
-    public static void main(String args[]) {
-        ProjectBuilder pb = new ProjectBuilder("test");
-    }
+    private String createdOn;
+    private String modified;
     
     /**
      * 
      * @param filename 
      */
     
-    public ProjectBuilder(String filename) {
+    public ProjectBuilder(String filename, String projectDirectory, String watershedDirectory) {
         String sep = File.separator;
+        Date date = new Date();
+        SimpleDateFormat ft = new SimpleDateFormat("E yyy.MM.dd 'at' hh:mm:ss a zzz");
         try {
-            applicationDirectory = java.net.URLDecoder.decode(getClass().getProtectionDomain().getCodeSource().getLocation().getPath(), "UTF-8");
-            applicationDirectory += getClass().getName().replace('.', File.separatorChar);
-            applicationDirectory = new File(applicationDirectory).getParent() + sep;
-            projectDirectory = applicationDirectory + sep + "Projects" + sep + filename;
-            scenarioDirectory = projectDirectory + sep + "Scenarios" + sep;
-            watershedDirectory = applicationDirectory + "resources" + sep + "STC" + sep + "Data" + sep;
-            spatialDirectory = watershedDirectory + "Spatial" + sep;
-            txtInOutDirectory = watershedDirectory + "txtinout" + sep;
+            scenarioDirectory = projectDirectory + sep + filename + sep + "Scenarios" + sep;
+            spatialDirectory = watershedDirectory + sep + "Spatial" + sep;
+            txtInOutDirectory = watershedDirectory + sep + "txtinout" + sep;
             baseDirectory = scenarioDirectory + "Base Scenarios" + sep;
             userDirectory = scenarioDirectory + "User Scenarios" + sep;
-            File projFile = new File(projectDirectory);
+            File projFile = new File(projectDirectory + sep + filename);
             if(!projFile.exists()) {
-                projFile.mkdirs();               
+                projFile.mkdirs();
+                createdOn = "Date Created: " + ft.format(date);
+                modified = "Last Modified: ";
+            }
+            else {
+                BufferedReader br =  new BufferedReader(new FileReader(projFile + sep + projFile.getName() + ".wpj"));
+                String temp;
+                while((temp = br.readLine()) != null)  {
+                    if(temp.contains("Created:")) {
+                        createdOn = temp;
+                        modified = "Last Modified: " + ft.format(date);
+                    }
+                }
             }
             File[] files = {new File(scenarioDirectory), new File(baseDirectory),
                             new File(userDirectory)};
@@ -65,10 +65,8 @@ public class ProjectBuilder {
             pw.println("Scenario Location: " + scenarioDirectory);
             pw.println("Base Scenario Folder: " + baseDirectory);
             pw.println("User Scenario Folder: " + userDirectory);
-            Date date = new Date();
-            SimpleDateFormat ft = new SimpleDateFormat("E yyy.MM.dd 'at' hh:mm:ss a zzz");
-            pw.println("Date Created: " + ft.format(date));
-            pw.println("Last Modified: " + modified);
+            pw.println(createdOn);
+            pw.println(modified);
             pw.println("\nDBF FILES\n");
             pw.println("boundary.shp");
             pw.println("stream.shp");

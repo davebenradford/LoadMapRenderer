@@ -31,8 +31,7 @@ import nl.knaw.dans.common.dbflib.*;
 public class ScenarioBuilder {
     private final File spatial = new File("spatial.db3");
     private final File[] dbf_tbls;
-    protected static double progress;
-    protected static boolean scenarioType;
+    public static double progress;
 
     /**
      * @param scen: String containing the Scenario Name.
@@ -46,13 +45,12 @@ public class ScenarioBuilder {
      * @throws IOException: File I/O Error when verifying existence of a DBF table.
      */
     
-    protected ScenarioBuilder(String scen, boolean isBase, boolean type, String directory) throws ClassNotFoundException, SQLException, IOException {
+    public ScenarioBuilder(String scen, boolean isBase, boolean type, String directory) throws ClassNotFoundException, SQLException, IOException {
         File[] f = {new File(directory + "small_dam.dbf"), new File(directory + "cattle_yard.dbf"), new File(directory + "grazing.dbf"),
                     new File(directory + "land2010_by_land_id.dbf"), new File(directory + "farm2010.dbf")};
         dbf_tbls = f;
         String inDb;
         progress = 0.0;
-        scenarioType = type;
         Class.forName("org.sqlite.JDBC");
         
         if(isBase) {
@@ -100,6 +98,10 @@ public class ScenarioBuilder {
             cOutput.close();
             cInDb3.close();
         }
+    } 
+    
+    public void updateSmallDams() {
+        
     }
     
     /**
@@ -250,7 +252,7 @@ public class ScenarioBuilder {
             c.commit();
             //progress = WEBsInterface.calculateProgressBaseScenario("\n" + outTbl + " database created successfully", scenarioType, progress);
         } catch (SQLException e) {
-            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e); 
+            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
         }
     }
     
@@ -292,28 +294,43 @@ public class ScenarioBuilder {
      * @param inFld: Input Statement for the yield_historic SQL Table.
      * @param inBmp: Input Statement for the field_subbasin SQL Table.
      * @param out: Output Statement Call.
-     * @param tblA: yield_historic SQL Table.
-     * @param tblB: field_subbasin SQL Table.
+     * @param inTblA: yield_historic SQL Table.
+     * @param inTblB: field_subbasin SQL Table.
      * @param outTbl: crop_economic_fields Output SQL Table.
      * @param c: Connection to the Output SQL Database.
      */
     
-    private void buildCropEconSubbasins(Statement inFld, Statement inBmp, Statement out, String tblA, String tblB, String outTbl, Connection c) {
+    private void buildCropEconSubbasins(Statement inFld, Statement inBmp, Statement out, String inTblA, String inTblB, String outTbl, Connection c) {
         try {
-            ResultSet inRsFld = inFld.executeQuery("SELECT * FROM " + tblA + ";");
-            ResultSet inRsBsn = inBmp.executeQuery("SELECT * FROM " + tblB + " WHERE subbasin > 0 ORDER BY subbasin;");
+            ResultSet inRsFld = inFld.executeQuery("SELECT * FROM " + inTblA + ";");
+            ResultSet inRsBsn = inBmp.executeQuery("SELECT * FROM " + inTblB + " WHERE subbasin > 0 ORDER BY subbasin;");
             ResultSet outRs = out.executeQuery("SELECT * FROM " + outTbl + ";");
             NameTypePair[] ntp = loadInputNamesAndTypes(inRsFld);
             String outColumnNames = loadOutputColumnNames(outRs);
             String sql = "INSERT INTO " + outTbl + "(" + outColumnNames + "VALUES(";
-            writeFarmSubbasinOutputQueries(inRsBsn, inFld, tblA, ntp, sql, out, "subbasin");
+            writeFarmSubbasinOutputQueries(inRsBsn, inFld, inTblA, ntp, sql, out, "subbasin");
             c.commit();
             //progress = WEBsInterface.calculateProgressBaseScenario("\n" + outTbl + " database created successfully", scenarioType, progress);
         } catch(SQLException e) {
             Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
         }
     }
-     
+    
+    private void buildTillage(Statement in, Statement out, String inTbl, String outTbl, Connection c) {
+        try {
+            ResultSet inRs = in.executeQuery("SELECT * FROM " + inTbl + ";");
+            ResultSet outRs = out.executeQuery("SELECT * FROM " + outTbl + ";");
+            NameTypePair[] ntp = loadInputNamesAndTypes(inRs);
+            String outColumnNames = loadOutputColumnNames(inRs);
+            String sql = "INSERT INTO " + outTbl + "(" + outColumnNames + "VALUES(";
+            while (inRs.next()) {
+                //out.executeUpdate(writeTillageOutputQuery(inRs, ntp, sql, 0));
+            }
+        } catch (SQLException e) {
+            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+        }
+    }
+    
     /**
      * 
      * @param src: ValueTypePair Array containing the table data values.

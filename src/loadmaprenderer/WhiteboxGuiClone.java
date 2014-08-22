@@ -46,6 +46,7 @@ import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.PrintRequestAttributeSet;
 import javax.script.*;
 import javax.swing.*;
+import javax.swing.JToolBar.Separator;
 import javax.swing.border.*;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
@@ -85,7 +86,6 @@ import whitebox.utilities.FileUtilities;
 import whitebox.utilities.StringUtilities;
 import whiteboxgis.*;
 import whiteboxgis.user_interfaces.AboutWhitebox;
-import whiteboxgis.user_interfaces.AttributesFileViewer;
 import whiteboxgis.user_interfaces.FeatureSelectionPanel;
 import whiteboxgis.user_interfaces.IconTreeNode;
 import whiteboxgis.user_interfaces.LayersPopupMenu;
@@ -100,11 +100,12 @@ import whiteboxgis.user_interfaces.ViewTextDialog;
 
 /**
  * For Whitebox GAT 3.2.1.
+ *
  * @author Dr. John Lindsay <jlindsay@uoguelph.ca>
- * 
+ *
  * For WEBs Interface
  * @author David Radford <radfordd@uoguelph.ca>
- * 
+ *
  * All code used with permission from Dr. John Lindsay in accordance with the
  * GNU Public License. <http://www.gnu.org/licenses/>.
  */
@@ -114,7 +115,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     public static final Logger logger = Logger.getLogger(WhiteboxGuiClone.class.getPackage().getName());
     private static PluginService pluginService = null;
     private StatusBar status;
-    
+
     // common variables
     private static final String versionName = "3.2 'Iguazu'";
     public static final String versionNumber = "3.2.1";
@@ -129,10 +130,12 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private String workingDirectory;
     private String paletteDirectory;
     private String logDirectory;
-    
+
+    private String projectDirectory;
+    private String watershedDirectory;
     private String spatialDirectory;
     private String txtInOutDirectory;
-    
+
     private String defaultQuantPalette;
     private String defaultQualPalette;
     private String pathSep;
@@ -144,42 +147,74 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     //Tab Index for Drawing Area
     private int ptbTabsIndex = 0;
     private int mtbTabsIndex = 0;
-    
-    //Map Boolean Values
+
+    //BMP Map Values
     private boolean damMap = false;
+    private int openDam;
+    private MapInfo miDam;
     private boolean pondMap = false;
+    private int openPond;
+    private MapInfo miPond;
     private boolean grazeMap = false;
+    private int openGraze;
+    private MapInfo miGraze;
     private boolean tillMap = false;
+    private int openTill;
+    private MapInfo miTill;
     private boolean forageMap = false;
-    
+    private int openForage;
+    private MapInfo miForage;
+
+    // Whitebox Tabs
     private int qlTabsIndex = 0;
     private int[] selectedMapAndLayer = new int[3];
     private boolean linkAllOpenMaps = false;
     private boolean hideAlignToolbar = true;
-    
+
     // Gui items.
     private JList allTools;
     private JList recentTools;
     private JList mostUsedTools;
     private JSplitPane splitPane;
     private JSplitPane splitPane2;
-    
+    private JSplitPane splitPane3;
+
+    // WEBs Components
+    public JLabel projLocation;
+    public JLabel spatLocation;
+    public JLabel swatLocation;
+    public JTextField projNameFld;
+    public JButton saveProj;
+    private Separator projSep;
+    private Separator scenSep;
+    private JButton dams;
+    private JButton ponds;
+    private JButton grazing;
+    private JButton tillage;
+    private JButton forage;
+    private JButton newScen;
+    private JButton editScen;
+    private JButton delScen;
+    private JRadioButton rbConvTill;
+    private JRadioButton rbZeroTill;
+
     // WEBs Panels
-    private JPanel webs;
-    private JPanel projPanel;
+    public JPanel webs;
+    public JPanel tableView;
+    public JPanel projPanel;
     private JPanel scenPanel;
     private JPanel basicScen;
     private JPanel bmpSection;
     private JPanel controlSection;
-    
+
     // 
     private JTabbedPane tabs = new JTabbedPane();
     private JTree tree = null;
     private JTabbedPane qlTabs = null;
     private JTabbedPane ptb = null;
-    
+
     private JTabbedPane mtb = new JTabbedPane();
-    
+
     private MapRenderingTool drawingArea = new MapRenderingTool();
     private ArrayList<MapInfo> openMaps = new ArrayList<>();
     private int activeMap = 0;
@@ -220,11 +255,9 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private JTextField scaleText = new JTextField();
     private PageFormat defaultPageFormat = new PageFormat();
     private Font defaultFont = null;
-    
+
     private static final Font f = new Font("Sans_Serif", Font.PLAIN, 12);
-    private ImageIcon smOpenProjIcon = new ImageIcon("folder_16x16.png");
-    public ImageIcon websIcon = new ImageIcon("icon_32x32.png");
-    
+
     private int numberOfRecentItemsToStore = 5;
     private RecentMenu recentDirectoriesMenu = new RecentMenu();
     private RecentMenu recentFilesMenu = new RecentMenu();
@@ -346,8 +379,12 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             }
             resourcesDirectory = applicationDirectory + pathSep + "resources" + pathSep;
             graphicsDirectory = resourcesDirectory + "Images" + pathSep;
+            
+            projectDirectory = applicationDirectory + pathSep + "Projects";
+            watershedDirectory = resourcesDirectory + "STC";
             spatialDirectory = resourcesDirectory + "STC" + pathSep + "Data" + pathSep + "Spatial" + pathSep;
             txtInOutDirectory = resourcesDirectory + "STC" + pathSep + "Data" + pathSep + "txtinout" + pathSep;
+            
             helpDirectory = resourcesDirectory + "Help" + pathSep;
             pluginDirectory = resourcesDirectory + "plugins" + pathSep;
             toolboxFile = resourcesDirectory + "toolbox.xml";
@@ -674,7 +711,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             }
         } catch (DOMException e) {
             logger.log(Level.SEVERE, "WhiteboxGui.getTextValue", e);
-        } 
+        }
         return textVal;
     }
 
@@ -2157,7 +2194,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 props.store(out, "--No comments--");
             }
         } catch (IOException e) {
-           logger.log(Level.SEVERE, "WhiteboxGui.setApplicationProperties", e);
+            logger.log(Level.SEVERE, "WhiteboxGui.setApplicationProperties", e);
         }
 
     }
@@ -2171,8 +2208,8 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         }
     }
     
-    
-    private GridBagConstraints setGbc(Insets  i, int fill, int a, int xCoord, int yCoord, int wide, int high, double weighX, double weighY) {
+
+    private GridBagConstraints setGbc(Insets i, int fill, int a, int xCoord, int yCoord, int wide, int high, double weighX, double weighY) {
         GridBagConstraints g = new GridBagConstraints();
         g.insets = i;
         g.fill = fill;
@@ -2185,15 +2222,15 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         g.weighty = weighY;
         return g;
     }
-    
+
     private JPanel createPanel(JPanel pnl, String s, Boolean v) {
         pnl.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(EtchedBorder.LOWERED), s, TitledBorder.LEFT, TitledBorder.TOP, f));
         pnl.setLayout(new GridBagLayout());
         pnl.setVisible(v);
         return pnl;
     }
-    
-    private JButton createTopPanelButton(JButton btn, String s, Border brd, Boolean en, ActionListener a, MouseListener m) {
+
+    private JButton createTopPanelButton(JButton btn, String s, String ac, Border brd, Boolean en, ActionListener al, MouseListener m) {
         btn.setFont(f);
         btn.setVerticalTextPosition(SwingConstants.BOTTOM);
         btn.setHorizontalTextPosition(SwingConstants.CENTER);
@@ -2203,12 +2240,13 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         btn.setToolTipText(s);
         btn.setEnabled(en);
         btn.setFocusable(false);
-        btn.addActionListener(a);
+        btn.addActionListener(al);
+        btn.setActionCommand(ac);
         btn.addMouseListener(m);
         return btn;
     }
-    
-    private JButton createScenarioPanelButton(JButton btn, String s, ActionListener a, MouseListener m) {
+
+    private JButton createScenarioPanelButton(JButton btn, String s, String ac, ActionListener al, MouseListener m) {
         btn.setFont(f);
         btn.setVerticalTextPosition(SwingConstants.BOTTOM);
         btn.setHorizontalTextPosition(SwingConstants.CENTER);
@@ -2217,17 +2255,18 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         btn.setToolTipText(s);
         btn.setEnabled(true);
         btn.setFocusable(false);
-        btn.addActionListener(a);
+        btn.addActionListener(al);
+        btn.setActionCommand(ac);
         btn.addMouseListener(m);
         return btn;
     }
-    
+
     private JPanel buildProjectTreePanel() {
         JPanel projTreePanel = new JPanel(new GridBagLayout());
         projTreePanel.setBorder(BorderFactory.createLoweredBevelBorder());
         projTreePanel.setBackground(Color.WHITE);
         projTreePanel.setToolTipText("This is the Project Tree Panel.");
-        
+
         DefaultMutableTreeNode projNode = new DefaultMutableTreeNode("Project");
         DefaultMutableTreeNode scenNode = new DefaultMutableTreeNode("Base Scenario"); // Generic Node without having an Object Name? May be necessary.
         JTree tree = new JTree(projNode);
@@ -2238,14 +2277,14 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         scenNode.add(new DefaultMutableTreeNode("Foraging Areas"));
         scenNode.add(new DefaultMutableTreeNode("Results"));
         projNode.add(scenNode);
-        
+
         JPanel treePanel = new JPanel(new GridBagLayout());
         treePanel.setPreferredSize(new Dimension(projTreePanel.getWidth(), projTreePanel.getHeight()));
         treePanel.setBackground(Color.WHITE);
         treePanel.setVisible(true);
         GridBagConstraints gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 0.2, 0.0);
         treePanel.add(tree, gbc);
-        
+
         JLabel filler = new JLabel();
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.BOTH, GridBagConstraints.WEST, 1, 0, 2, 2, 0.8, 0.9);
         treePanel.add(filler, gbc);
@@ -2253,256 +2292,264 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         projTreePanel.setVisible(true);
         return projTreePanel;
     }
-    
+
     private JPanel buildResultsPanel() {
         JPanel resultFunctionsPanel = new JPanel(new GridBagLayout());
-        
+
         JPanel comparePanel = createPanel(new JPanel(), "Scenario", true);
         JRadioButton rbComp = new JRadioButton("Compare with");
         JRadioButton rbCompNot = new JRadioButton("Don't Compare");
-        
+
         ButtonGroup compGroup = new ButtonGroup();
         compGroup.add(rbCompNot);
         compGroup.add(rbComp);
-        
-        GridBagConstraints gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0); 
+
+        GridBagConstraints gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0);
         comparePanel.add(rbCompNot, gbc);
-        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 1, 1, 1, 1.0, 1.0); 
+        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 1, 1, 1, 1.0, 1.0);
         comparePanel.add(rbComp, gbc);
-        
+
         String[] compareList = {"Base Historic", "Base Conventional", "Scenarios With SWAT Results"};
         JComboBox jcbComp = new JComboBox(compareList);
         jcbComp.setSelectedIndex(0);
         jcbComp.addActionListener(this);
-        
-        gbc = setGbc(new Insets(0, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 2, 1, 1, 1.0, 1.0); 
+
+        gbc = setGbc(new Insets(0, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 2, 1, 1, 1.0, 1.0);
         comparePanel.add(jcbComp, gbc);
-        
-        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 1.0, 0.0); 
+
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 1.0, 0.0);
         resultFunctionsPanel.add(comparePanel, gbc);
-        
+
         JPanel resultLevelPanel = createPanel(new JPanel(), "Result Level", true);
         JRadioButton rbOnSite = new JRadioButton("On-Site");
         JRadioButton rbOffSite = new JRadioButton("Off-Site (Outlet)");
-        
+
         ButtonGroup resLvlGroup = new ButtonGroup();
         resLvlGroup.add(rbOnSite);
         resLvlGroup.add(rbOffSite);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 1, 1, 1, 1.0, 1.0);
         resultLevelPanel.add(rbOnSite, gbc);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 1, 1, 1, 1, 1.0, 1.0);
         resultLevelPanel.add(rbOffSite, gbc);
-        
-        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 1, 1, 1, 1.0, 0.0); 
+
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 1, 1, 1, 1.0, 0.0);
         resultFunctionsPanel.add(resultLevelPanel, gbc);
-        
+
         JPanel bmpPanel = createPanel(new JPanel(), "BMP", true);
         JCheckBox cbDams = new JCheckBox("Small Dams");
         JCheckBox cbPonds = new JCheckBox("Holding Ponds");
         JCheckBox cbGraze = new JCheckBox("Grazing Areas");
         JCheckBox cbTillFor = new JCheckBox("Tillage & Forage");
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbDams, gbc);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 1, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbPonds, gbc);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 2, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbGraze, gbc);
-        
+
         JPanel gLevelPanel = createPanel(new JPanel(), "Level", true);
         JRadioButton gRbGraze = new JRadioButton("Grazing Area");
         JRadioButton gRbSubbasin = new JRadioButton("Subbasin");
-        
+
         ButtonGroup gLevelGroup = new ButtonGroup();
         gLevelGroup.add(gRbGraze);
         gLevelGroup.add(gRbSubbasin);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0);
-        gLevelPanel.add(gRbGraze ,gbc);
+        gLevelPanel.add(gRbGraze, gbc);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 1, 0, 1, 1, 1.0, 1.0);
-        gLevelPanel.add(gRbSubbasin ,gbc);
-        
+        gLevelPanel.add(gRbSubbasin, gbc);
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 3, 1, 1, 1.0, 0.0);
         bmpPanel.add(gLevelPanel, gbc);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 4, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbTillFor, gbc);
-        
+
         JPanel tfLevelPanel = createPanel(new JPanel(), "Level", true);
         JRadioButton tfRbField = new JRadioButton("Field");
         JRadioButton tfRbFarm = new JRadioButton("Farm");
         JRadioButton tfRbSubbasin = new JRadioButton("Subbasin");
-        
+
         ButtonGroup tfLevelGroup = new ButtonGroup();
         tfLevelGroup.add(tfRbField);
         tfLevelGroup.add(tfRbFarm);
         tfLevelGroup.add(tfRbSubbasin);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0);
-        tfLevelPanel.add(tfRbField ,gbc);
+        tfLevelPanel.add(tfRbField, gbc);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 1, 0, 1, 1, 1.0, 1.0);
-        tfLevelPanel.add(tfRbFarm ,gbc);
+        tfLevelPanel.add(tfRbFarm, gbc);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 2, 0, 1, 1, 1.0, 1.0);
-        tfLevelPanel.add(tfRbSubbasin ,gbc);
-        
+        tfLevelPanel.add(tfRbSubbasin, gbc);
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 5, 1, 1, 1.0, 0.0);
-        bmpPanel.add(tfLevelPanel, gbc); 
-        
-        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 2, 1, 1, 1.0, 0.0); 
+        bmpPanel.add(tfLevelPanel, gbc);
+
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 2, 1, 1, 1.0, 0.0);
         resultFunctionsPanel.add(bmpPanel, gbc);
-        
+
         JPanel resultPanel = createPanel(new JPanel(), "Result", true);
         JRadioButton rbOnlySwat = new JRadioButton("Only SWAT");
         JRadioButton rbOnlyEcon = new JRadioButton("Only Economic");
         JRadioButton rbIntegrate = new JRadioButton("Integrated");
-        
+
         ButtonGroup resultGroup = new ButtonGroup();
         resultGroup.add(rbOnlySwat);
         resultGroup.add(rbOnlyEcon);
         resultGroup.add(rbIntegrate);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0);
         resultPanel.add(rbOnlySwat, gbc);
-        
+
         String[] swatList = {"Water Yield", "Sediment Yield", "Particulate Phosphorus", "Dissolved Phosphorus",
-                             "Total Phosphorus","Particulate Nitrogen", "Dissolved Nitrogen", "Total Nitrogen"};
+            "Total Phosphorus", "Particulate Nitrogen", "Dissolved Nitrogen", "Total Nitrogen"};
         JComboBox jcbSwat = new JComboBox(swatList);
         jcbSwat.setSelectedIndex(1);
         jcbSwat.addActionListener(this);
 
         gbc = setGbc(new Insets(4, 0, 4, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 1, 1, 1, 1.0, 1.0);
         resultPanel.add(jcbSwat, gbc);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 2, 1, 1, 1.0, 1.0);
         resultPanel.add(rbOnlyEcon, gbc);
-        
+
         String[] econList = {"Small Dam", "Holding Ponds", "Grazing Area", "Tillage", "Forage"};
         JComboBox jcbEcon = new JComboBox(econList);
         jcbEcon.setSelectedIndex(0);
         jcbEcon.addActionListener(this);
-        
+
         gbc = setGbc(new Insets(4, 0, 4, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 3, 1, 1, 1.0, 1.0);
         resultPanel.add(jcbEcon, gbc);
-        
+
         JPanel tillForPanel = createPanel(new JPanel(), "Tillage & Forage", true);
         String[] tillForList = {"Yield", "Revenue", "Crop Cost", "Crop Return"};
         JComboBox jcbTillFor = new JComboBox(tillForList);
         jcbTillFor.setSelectedIndex(0);
         jcbTillFor.addActionListener(this);
-        
+
         gbc = setGbc(new Insets(4, 0, 4, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0);
         tillForPanel.add(jcbTillFor, gbc);
-        
+
         gbc = setGbc(new Insets(4, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 4, 1, 1, 1.0, 1.0);
         resultPanel.add(tillForPanel, gbc);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 5, 1, 1, 1.0, 1.0);
         resultPanel.add(rbIntegrate, gbc);
-        
-        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 3, 1, 1, 1.0, 0.0); 
+
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 3, 1, 1, 1.0, 0.0);
         resultFunctionsPanel.add(resultPanel, gbc);
 
         JPanel timePanel = createPanel(new JPanel(), "Time", true);
         JSlider startSlide = new JSlider(JSlider.HORIZONTAL, 1990, 2010, 1990);
         JSlider endSlide = new JSlider(JSlider.HORIZONTAL, 1990, 2010, 2010);
-        
+
         startSlide.setMinorTickSpacing(1);
         startSlide.setPaintTicks(true);
         endSlide.setMinorTickSpacing(1);
         endSlide.setPaintTicks(true);
-        
+
         JLabel startLbl = new JLabel("Start Year");
         JLabel endLbl = new JLabel("End Year");
-        
+
         gbc = setGbc(new Insets(8, 0, 8, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 1.0);
         timePanel.add(startLbl, gbc);
-        
+
         gbc = setGbc(new Insets(8, 0, 8, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 1, 0, 1, 1, 1.0, 1.0);
         timePanel.add(startSlide, gbc);
-        
+
         gbc = setGbc(new Insets(8, 0, 8, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 1, 1, 1, 1.0, 1.0);
         timePanel.add(endLbl, gbc);
-        
+
         gbc = setGbc(new Insets(8, 0, 8, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 1, 1, 1, 1, 1.0, 1.0);
         timePanel.add(endSlide, gbc);
-        
-        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 4, 1, 1, 1.0, 1.0); 
+
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 4, 1, 1, 1.0, 1.0);
         resultFunctionsPanel.add(timePanel, gbc);
-        
+
         return resultFunctionsPanel;
     }
 
     private void buildNewProjectPanel() {
         projPanel = new JPanel(new GridBagLayout());
         projPanel.setBorder(BorderFactory.createLoweredBevelBorder());
-        
+
         Border b = BorderFactory.createLoweredBevelBorder();
         JPanel basicProj = createPanel(new JPanel(), "Basic Information", true);
-        
+
+        JLabel projNameLbl = new JLabel("Watershed Name", SwingConstants.RIGHT);
+        GridBagConstraints gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 0.0, 0.0);
+        basicProj.add(projNameLbl, gbc);
+
+        projNameFld = new JTextField("", 40);
+        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 1, 0, 1, 1, 0.75, 0.0);
+        basicProj.add(projNameFld, gbc);
+
         JLabel wsNameLbl = new JLabel("Watershed Name", SwingConstants.RIGHT);
-        GridBagConstraints gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 1, 1, 1, 0.0, 0.0);
+        gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 1, 1, 1, 0.0, 0.0);
         basicProj.add(wsNameLbl, gbc);
-        
+
         JTextField wsNameFld = new JTextField("STC", 40);
-        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 1, 1, 1, 0.75, 0.0);
+        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 1, 1, 1, 1, 0.75, 0.0);
         basicProj.add(wsNameFld, gbc);
-        
+
         JLabel projLocLbl = new JLabel("Project File", SwingConstants.RIGHT);
-        gbc = setGbc(new Insets(16, 24, 16, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 2, 1, 1, 0.05, 0.0);
+        gbc = setGbc(new Insets(16, 24, 16, 0), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 2, 1, 1, 0.05, 0.0);
         basicProj.add(projLocLbl, gbc);
-        
-        JLabel projLocation = new JLabel("C:\\", SwingConstants.LEFT);
-        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 2, 1, 1, 0.75, 0.0);
+
+        projLocation = new JLabel("C:\\", SwingConstants.LEFT);
+        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 1, 2, 1, 1, 0.75, 0.0);
         basicProj.add(projLocation, gbc);
-        
+
         gbc = setGbc(new Insets(0, 4, 0, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.CENTER, 1, 0, 1, 1, 0.75, 0.0);
         projPanel.add(basicProj, gbc);
-        
+
         JPanel spatial = createPanel(new JPanel(), "Spatial Data", true);
-        
+
         JLabel spatLocLbl = new JLabel("Spatial Data Folder", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 1, 1, 1, 0.05, 0.0);
         spatial.add(spatLocLbl, gbc);
-        
-        JLabel spatLocation = new JLabel("C:\\", SwingConstants.LEFT);
+
+        spatLocation = new JLabel("C:\\", SwingConstants.LEFT);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 1, 1, 1, 0.75, 0.0);
         spatial.add(spatLocation, gbc);
-        
-        JButton spatLocBtn = createTopPanelButton(new JButton(smOpenProjIcon), "Show the Spatial Data Folder in Explorer.", b, true, null, null);
+
+        JButton spatLocBtn = createTopPanelButton(new JButton("folder_16x16.png"), "Show the Spatial Data Folder in Explorer.", "empty", b, true, null, null);
         spatLocBtn.setVisible(false);
         spatLocBtn.setPreferredSize(new Dimension(32, 32));
         gbc = setGbc(new Insets(0, 0, 0, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 3, 1, 1, 3, 0.0, 0.0);
         spatial.add(spatLocBtn, gbc);
-        
+
         JLabel smDamLbl = new JLabel("Small Dam", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 2, 1, 1, 0.05, 0.0);
         spatial.add(smDamLbl, gbc);
-        
+
         JTextField smDamFld = new JTextField("small_dam", 40);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 2, 1, 1, 0.75, 0.0);
         spatial.add(smDamFld, gbc);
-        
+
         JLabel pondLbl = new JLabel("Holding Pond", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 3, 1, 1, 0.05, 0.0);
         spatial.add(pondLbl, gbc);
-        
+
         JTextField pondFld = new JTextField("cattle_yard", 40);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 3, 1, 1, 0.75, 0.0);
         spatial.add(pondFld, gbc);
-        
+
         JLabel grazeLbl = new JLabel("Grazing", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 4, 1, 1, 0.05, 0.0);
         spatial.add(grazeLbl, gbc);
-        
+
         JTextField grazeFld = new JTextField("grazing", 40);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 4, 1, 1, 0.75, 0.0);
         spatial.add(grazeFld, gbc);
-        
+
         JLabel fieldLbl = new JLabel("Field", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 5, 1, 1, 0.05, 0.0);
         spatial.add(fieldLbl, gbc);
-        
+
         JTextField fieldFld = new JTextField("land2010_by_land_id", 40);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 5, 1, 1, 0.75, 0.0);
         spatial.add(fieldFld, gbc);
@@ -2510,34 +2557,34 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         JLabel farmLbl = new JLabel("Farm", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 24, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 6, 1, 1, 0.05, 0.0);
         spatial.add(farmLbl, gbc);
-        
+
         JTextField farmFld = new JTextField("farm2010", 40);
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 6, 1, 1, 0.75, 1.0);
         spatial.add(farmFld, gbc);
-        
+
         gbc = setGbc(new Insets(0, 4, 0, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.CENTER, 1, 1, 1, 1, 0.75, 0.0);
         projPanel.add(spatial, gbc);
-        
+
         JPanel swat = createPanel(new JPanel(), "SWAT Data", true);
-        
+
         JLabel swatLocLbl = new JLabel("SWAT Data Folder", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(16, 16, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 1, 1, 1, 0.05, 0.0);
         swat.add(swatLocLbl, gbc);
-        
-        JLabel swatLocation = new JLabel("C:\\", SwingConstants.LEFT);
+
+        swatLocation = new JLabel("C:\\", SwingConstants.LEFT);
         gbc = setGbc(new Insets(16, 16, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 1, 1, 1, 0.75, 0.0);
         swat.add(swatLocation, gbc);
-        
-        JButton swatLocBtn = createTopPanelButton(new JButton(smOpenProjIcon), "Show the SWAT Data Folder in Explorer.", b, true, null, null);
+
+        JButton swatLocBtn = createTopPanelButton(new JButton("folder_16x16.png"), "Show the SWAT Data Folder in Explorer.", "empty", b, true, null, null);
         swatLocBtn.setVisible(false);
         swatLocBtn.setPreferredSize(new Dimension(32, 32));
         gbc = setGbc(new Insets(0, 0, 0, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 3, 1, 1, 1, 0.0, 0.0);
         swat.add(swatLocBtn, gbc);
-        
+
         gbc = setGbc(new Insets(0, 4, 0, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.CENTER, 1, 2, 1, 1, 0.75, 0.0);
         projPanel.add(swat, gbc);
-        
-        JButton scenButton = createScenarioPanelButton(new JButton(), "Builds the Base Historical and Conventional Scenarios.", new baseScenarioListener(), null);
+
+        JButton scenButton = createScenarioPanelButton(new JButton(), "Builds the Base Historical and Conventional Scenarios.", "baseScenario", this, null);
         scenButton.setLayout(new BorderLayout());
         scenButton.setMargin(new Insets(2, 2, 2, 2));
         scenButton.setPreferredSize(new Dimension(72, 54));
@@ -2550,204 +2597,119 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         scenButton.add(BorderLayout.NORTH, top);
         scenButton.add(BorderLayout.CENTER, mid);
         scenButton.add(BorderLayout.SOUTH, bot);
-        
+
         gbc = setGbc(new Insets(16, 32, 16, 16), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 3, 0, 0, 0.0, 0.25);
         scenButton.setContentAreaFilled(true);
         scenButton.setVisible(true);
         projPanel.add(scenButton, gbc);
     }
-    
+
     private void buildScenarioPanel() {
         scenPanel = new JPanel(new GridBagLayout());
         scenPanel.setBorder(BorderFactory.createLoweredBevelBorder());
-        
+
         basicScen = createPanel(new JPanel(), "Basic Information", true);
-        
+
         JLabel scenNameLbl = new JLabel("Scenario Name", SwingConstants.RIGHT);
         GridBagConstraints gbc = setGbc(new Insets(16, 70, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 1, 1, 1, 0.2, 0.0);
         basicScen.add(scenNameLbl, gbc);
-        
+
         JTextField scenNameFld = new JTextField("PLACEHOLDER", 82);
         gbc = setGbc(new Insets(0, 4, 0, 4), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 1, 1, 1, 0.8, 0.0);
         basicScen.add(scenNameFld, gbc);
-        
+
         JLabel filler = new JLabel();
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.BOTH, GridBagConstraints.WEST, 2, 1, 1, 2, 1.0, 0.0);
         basicScen.add(filler, gbc);
-        
+
         JLabel scenDescLbl = new JLabel("Scenario Description", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(0, 46, 16, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 2, 1, 1, 0.2, 0.0);
         basicScen.add(scenDescLbl, gbc);
-        
+
         JTextArea scenDescFld = new JTextArea("Description PLACEHOLDER", 3, 60);
         scenDescFld.setFont(f);
         scenDescFld.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
         gbc = setGbc(new Insets(0, 4, 4, 4), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 2, 1, 1, 0.8, 0.0);
         basicScen.add(scenDescFld, gbc);
         
+        JLabel tillageTypeLbl = new JLabel("Tillage Type:", SwingConstants.RIGHT);
+        gbc = setGbc(new Insets(0, 46, 16, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 3, 1, 1, 0.2, 0.0);
+        basicScen.add(tillageTypeLbl, gbc);
+        
+        rbConvTill = new JRadioButton("Conventional Tillage");
+        rbZeroTill = new JRadioButton("Zero Tillage");
+        
+        ButtonGroup tillGroup = new ButtonGroup();
+        tillGroup.add(rbConvTill);
+        tillGroup.add(rbZeroTill);
+        
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 1, 3, 1, 1, 1.0, 0.0);
+        basicScen.add(rbConvTill, gbc);
+        
+        gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 2, 3, 1, 1, 0.0, 0.0);
+        basicScen.add(rbZeroTill, gbc);
+        
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 1.0, 0.0);
         scenPanel.add(basicScen, gbc);
-        
+
         bmpSection = createPanel(new JPanel(), "BMPs", true);
-        
-        JButton btnDamSc = createScenarioPanelButton(new JButton("Small Dam", new ImageIcon(graphicsDirectory + "draw_polygon_curves.png")),
-                                                     "Select Small Dams", new damsListener(), null);
+
+        JButton btnDamSc = createScenarioPanelButton(new JButton("Small Dam", new ImageIcon(graphicsDirectory + "draw_polygon_curves_32x32.png")),
+                "Select Small Dams", "damsBmp", this, null); //new damsListener()
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnDamSc, gbc);
-        
-        JButton btnPondSc = createScenarioPanelButton(new JButton("Holding Pond", new ImageIcon(graphicsDirectory + "button.png")),
-                                                      "Select Holding Ponds", new pondsListener(), null);
+
+        JButton btnPondSc = createScenarioPanelButton(new JButton("Holding Pond", new ImageIcon(graphicsDirectory + "button_32x32.png")),
+                "Select Holding Ponds", "pondsBmp", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnPondSc, gbc);
-        
+
         JButton btnGrazeSc = createScenarioPanelButton(new JButton("Grazing", new ImageIcon(graphicsDirectory + "cow_head_32x32.png")),
-                                                       "Select Grazing Areas", new grazingListener(), null);
+                "Select Grazing Areas", "grazingBmp", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 2, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnGrazeSc, gbc);
 
-        JButton btnTillSc = createScenarioPanelButton(new JButton("Tillage", new ImageIcon(graphicsDirectory + "tractor.png")),
-                                                      "Select Tillage Areas", new tillageListener(), null);
+        JButton btnTillSc = createScenarioPanelButton(new JButton("Tillage", new ImageIcon(graphicsDirectory + "tractor_32x32.png")),
+                "Select Tillage Areas", "tillageBmp", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 3, 0, 1, 1, 0.0, 0.0);
         bmpSection.add(btnTillSc, gbc);
 
-        JButton btnForageSc = createScenarioPanelButton(new JButton("Forage", new ImageIcon(graphicsDirectory + "grass.png")),
-                                                        "Select Foraging Areas", new forageListener(), null);
+        JButton btnForageSc = createScenarioPanelButton(new JButton("Forage", new ImageIcon(graphicsDirectory + "grass_32x32.png")),
+                "Select Foraging Areas", "forageBmp", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 4, 0, 1, 1, 1.0, 0.0);
         bmpSection.add(btnForageSc, gbc);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 1, 1, 1, 1.0, 0.0);
         scenPanel.add(bmpSection, gbc);
-        
+
         controlSection = createPanel(new JPanel(), "Controls", true);
-        
-        JButton btnSaveSc = createScenarioPanelButton(new JButton("Save", new ImageIcon(graphicsDirectory + "picture_save.png")), "Save Scenario", null, null);
+
+        JButton btnSaveSc = createScenarioPanelButton(new JButton("Save", new ImageIcon(graphicsDirectory + "picture_save_32x32.png")), "Save Scenario", "empty", null, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 0, 1, 1, 0.0, 0.0);
-        controlSection.add(btnSaveSc , gbc);
-        
-        JButton btnSaveAsSc = createScenarioPanelButton(new JButton("Save As", new ImageIcon(graphicsDirectory + "page_save.png")), "Save Scenario As", null, null);
+        controlSection.add(btnSaveSc, gbc);
+
+        JButton btnSaveAsSc = createScenarioPanelButton(new JButton("Save As", new ImageIcon(graphicsDirectory + "page_save_32x32.png")), "Save Scenario As", "empty", null, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 0, 1, 1, 0.0, 0.0);
-        controlSection.add(btnSaveAsSc , gbc);
-        
-        JButton btnEconSc = createScenarioPanelButton(new JButton("Economic", new ImageIcon(graphicsDirectory + "cash_stack.png")), "Run Economic Model", null, null);
+        controlSection.add(btnSaveAsSc, gbc);
+
+        JButton btnEconSc = createScenarioPanelButton(new JButton("Economic", new ImageIcon(graphicsDirectory + "cash_stack_32x32.png")), "Run Economic Model", "empty", null, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 2, 0, 1, 1, 0.0, 0.0);
-        controlSection.add(btnEconSc , gbc);
-        
-        JButton btnSwatSc = createScenarioPanelButton(new JButton("SWAT", new ImageIcon(graphicsDirectory + "weather_snow.png")), "Run SWAT Model", null, null);
+        controlSection.add(btnEconSc, gbc);
+
+        JButton btnSwatSc = createScenarioPanelButton(new JButton("SWAT", new ImageIcon(graphicsDirectory + "weather_snow_32x32.png")), "Run SWAT Model", "empty", null, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 3, 0, 1, 1, 0.0, 0.0);
-        controlSection.add(btnSwatSc , gbc);
-        
-        JButton btnResultSc = createScenarioPanelButton(new JButton("Results", new ImageIcon(graphicsDirectory + "3d_glasses.png")), "View Scenario Results", null, null);
+        controlSection.add(btnSwatSc, gbc);
+
+        JButton btnResultSc = createScenarioPanelButton(new JButton("Results", new ImageIcon(graphicsDirectory + "3d_glasses_32x32.png")), "View Scenario Results", "empty", null, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 4, 0, 1, 1, 1.0, 0.0);
         controlSection.add(btnResultSc, gbc);
-        
+
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 2, 1, 1, 1.0, 0.25);
         scenPanel.add(controlSection, gbc);
         scenPanel.validate();
     }
     
-    private class baseScenarioListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent ae) {
-            try {
-                wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                wb.getGlassPane().setVisible(true);
-                ScenarioBuilder scH = new ScenarioBuilder("historic", true, true, spatialDirectory);
-                ScenarioBuilder scC = new ScenarioBuilder("conventional", true, false, spatialDirectory);
-                wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
-                wb.getGlassPane().setVisible(true);
-                webs.remove(projPanel);
-                webs.add(scenPanel);
-                wb.validate();
-            } catch (ClassNotFoundException | SQLException | IOException e) {
-                logger.log(Level.SEVERE, "WhiteboxGui.baseScenarioListener", e);
-            }
-        }
-    }
-    
-    private class damsListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent ae) {
-            mtb.setSelectedIndex(1);
-            if(!damMap) {
-                newMap("Small Dam BMP");
-                addLayer(spatialDirectory + "subbasin.shp");
-                addLayer(spatialDirectory + "small_dam.shp");
-                damMap = true;
-            }
-            else {
-                setAsActiveLayer();
-            }
-            wb.validate();
-        }
-    }
-    
-    private class pondsListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent ae) {
-            mtb.setSelectedIndex(1);
-            if(!pondMap) {
-                newMap("Holding Ponds BMP");
-                addLayer(spatialDirectory + "subbasin.shp");
-                addLayer(spatialDirectory + "cattle_yard.shp");
-                pondMap = true;
-            }
-            else {
-                openMap("Holding Pond BMP");
-            }
-            wb.validate();
-        }
-    }
-    
-    private class grazingListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent ae) {
-            mtb.setSelectedIndex(1);
-            if(!grazeMap) {
-                newMap("Grazing Area BMP");
-                addLayer(spatialDirectory + "subbasin.shp");
-                addLayer(spatialDirectory + "grazing.shp");
-                grazeMap = true;
-            }
-            else {
-                openMap("Grazing Area BMP");
-            }
-            wb.validate();
-        }
-    }
-    
-    private class tillageListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent ae) {
-            mtb.setSelectedIndex(1);
-            if(!tillMap) {
-                newMap("Tillage BMP");
-                addLayer(spatialDirectory + "land2010_by_land_id.shp");
-                tillMap = true;
-            }
-            else {
-                openMap("Tillage BMP");
-            }
-            wb.validate();
-        }
-    }
-    
-    private class forageListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent ae) {
-            mtb.setSelectedIndex(1);
-            if(!forageMap) {
-                newMap("Forage BMP");
-                addLayer(spatialDirectory + "land2010_by_land_id.shp");
-                forageMap = true;
-            }
-            else {
-                openMap("Forage BMP");
-            }
-            wb.validate();
-        }
-    }  
-    
-    
+
     private void createGui() throws InvocationTargetException {
         try {
             if (System.getProperty("os.name").contains("Mac")) {
@@ -2770,7 +2732,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             createToolbar();
             ctb = new CartographicToolbar(this, false);
             ctb.setOrientation(SwingConstants.VERTICAL);
-            this.getContentPane().add(ctb, BorderLayout.EAST);
+            //this.getContentPane().add(ctb, BorderLayout.EAST);
 
             MapInfo mapinfo = new MapInfo(bundle.getString("Map") + "1");
             mapinfo.setMapName(bundle.getString("Map") + "1");
@@ -2778,6 +2740,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             mapinfo.setWorkingDirectory(workingDirectory);
             mapinfo.setDefaultFont(defaultFont);
             mapinfo.setMargin(defaultMapMargin);
+            mapinfo.setPageVisible(false);
 
             MapArea ma = new MapArea(bundle.getString("MapArea").replace(" ", "") + "1");
             ma.setUpperLeftX(-32768);
@@ -2791,16 +2754,20 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             drawingArea.setStatusBar(status);
             drawingArea.setScaleText(scaleText);
             drawingArea.setHost(this);
-            
+
             ptb = createTabbedPane();
             ptb.setMaximumSize(new Dimension(150, 50));
             ptb.setPreferredSize(new Dimension(splitterLoc1, 50));
             ptb.setSelectedIndex(ptbTabsIndex);
             webs = new JPanel(new BorderLayout());
+            tableView = new JPanel();
             buildNewProjectPanel();
             buildScenarioPanel();
-            webs.add(projPanel);
-            mtb.insertTab("WEBs Interface", null, webs, "", 0);
+            splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, webs, tableView);
+            splitPane3.setResizeWeight(0.6);
+            splitPane3.setOneTouchExpandable(false);
+            splitPane3.setDividerSize(3);
+            mtb.insertTab("WEBs Interface", null, splitPane3, "", 0);
             mtb.insertTab("Drawing Area", null, drawingArea, "", 1);
             mtb.setMaximumSize(new Dimension(150, 50));
             mtb.setPreferredSize(new Dimension(splitterLoc1, 50));
@@ -2820,9 +2787,9 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             status.setMessage(" " + plugInfo.size() + " plugins were located");
 
             splitPane2.setDividerLocation(0.75); //splitterToolboxLoc);
-            
+
             closeMap();
-            
+
             pack();
         } catch (SecurityException | IllegalArgumentException e) {
             logger.log(Level.SEVERE, "WhiteboxGui.createGui", e);
@@ -2993,7 +2960,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             }
 
             //menubar.add(fileMenu);
-
             // Layers menu
             layersMenu = new JMenu(bundle.getString("Data_Layers"));
             recentFilesMenu2.setNumItemsToStore(numberOfRecentItemsToStore);
@@ -3057,7 +3023,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             layerToBottom.setActionCommand("layerToBottom");
 
             //layersMenu.addSeparator();
-
             JMenuItem deselectAllFeatures = new JMenuItem(bundle.getString("clearAllSelectedFeatures"));
             deselectAllFeatures.addActionListener(this);
             deselectAllFeatures.setActionCommand("clearAllSelectedFeatures");
@@ -3069,7 +3034,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             //layersMenu.add(saveSelection);
 
             //layersMenu.addSeparator();
-
             JMenuItem layerProperties2 = new JMenuItem(bundle.getString("LayerDisplayProperties"),
                     new ImageIcon(graphicsDirectory + "LayerProperties.png"));
             layerProperties2.setActionCommand("layerProperties");
@@ -3094,16 +3058,13 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             //layersMenu.add(clipLayerToExtent);
 
             //layersMenu.addSeparator();
-
             JMenuItem mi = new JMenuItem(bundle.getString("ExportLayer"));
             mi.addActionListener(this);
             mi.setActionCommand("exportLayer");
             //layersMenu.add(mi);
-                
-            //layersMenu.addSeparator();
-            
-            //menubar.add(layersMenu);
 
+            //layersMenu.addSeparator();
+            //menubar.add(layersMenu);
             // View menu
             viewMenu = new JMenu(bundle.getString("View"));
 
@@ -3243,7 +3204,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             });
 
             //menubar.add(viewMenu);
-
             // Cartographic menu
             cartoMenu = new JMenu(bundle.getString("Cartographic"));
 
@@ -3400,7 +3360,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             cartoMenu.add(ungroupMenu);
 
             //menubar.add(cartoMenu);
-
             // Tools menu
             toolsMenu = new JMenu(bundle.getString("Tools"));
 
@@ -3502,7 +3461,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                     helpMenu.add(tutorialMenuItems[a]);
                 }
             }
-            
+
             helpMenu.addSeparator();
 
             JMenuItem helpAbout = new JMenuItem(bundle.getString("About") + " Whitebox GAT");
@@ -3518,7 +3477,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             helpMenu.add(helpReport);
 
             //menubar.add(helpMenu);
-
             this.setJMenuBar(menubar);
 
             loadMenuExtensions();
@@ -3527,7 +3485,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             logger.log(Level.SEVERE, "WhiteboxGui.createMenu", e);
         }
     }
-    
+
     private ArrayList<MenuExtension> menuExtensions = new ArrayList<>();
 
     private void loadMenuExtensions() {
@@ -3925,8 +3883,67 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             JButton help = makeToolBarButton("Help.png", "helpIndex",
                     bundle.getString("Help"), "Help");
             toolbar.add(help);
-            
-            //toolbar.addSeparator();
+
+            toolbar.addSeparator();
+
+            JButton newProj = makeToolBarButton("document_empty_16x16.png", "newProject",
+                    "New WEBs Project", "New WEBs Project");
+            toolbar.add(newProj);
+
+            JButton openProj = makeToolBarButton("folder_16x16.png", "newProject",
+                    "Open WEBs Project", "Open WEBs Project");
+            toolbar.add(openProj);
+
+            saveProj = makeToolBarButton("save_as_16x16.png", "saveProject",
+                    "Save WEBs Project", "Save WEBs Project");
+            saveProj.setEnabled(false);
+            toolbar.add(saveProj);
+
+            projSep = new Separator();
+            projSep.setVisible(false);
+            toolbar.add(projSep);
+
+            newScen = makeToolBarButton("add_16x16.png", "newScenario", "New WEBs Scenario", "New WEBs Scenario");
+            newScen.setVisible(false);
+            toolbar.add(newScen);
+
+            editScen = makeToolBarButton("information_16x16.png", "editScenario", "Edit Current Scenario", "Edit Current Scenario");
+            editScen.setVisible(false);
+            toolbar.add(editScen);
+
+            delScen = makeToolBarButton("delete_16x16.png", "deleteScenario", "Delete Current Scenario", "Delete Current Scenario");
+            delScen.setVisible(false);
+            toolbar.add(delScen);
+
+            scenSep = new Separator();
+            scenSep.setVisible(false);
+            toolbar.add(scenSep);
+
+            dams = makeToolBarButton("draw_polygon_curves_16x16.png", "damsBmp",
+                    "Small Dams", "Small Dams");
+            dams.setVisible(false);
+            toolbar.add(dams);
+
+            ponds = makeToolBarButton("button_16x16.png", "pondsBmp",
+                    "Holding Ponds", "Holding Ponds");
+            ponds.setVisible(false);
+            toolbar.add(ponds);
+
+            grazing = makeToolBarButton("cow_head_16x16.png", "grazingBmp",
+                    "Grazing Area", "Grazing Area");
+            grazing.setVisible(false);
+            toolbar.add(grazing);
+
+            tillage = makeToolBarButton("tractor_16x16.png", "tillageBmp",
+                    "Tillage", "Tillage");
+            tillage.setVisible(false);
+            toolbar.add(tillage);
+
+            forage = makeToolBarButton("grass_16x16.png", "forageBmp",
+                    "Forage", "Forage");
+            forage.setVisible(false);
+            toolbar.add(forage);
+
             toolbar.add(Box.createHorizontalGlue());
             JPanel scalePanel = new JPanel();
             scalePanel.setLayout(new BoxLayout(scalePanel, BoxLayout.X_AXIS));
@@ -4032,18 +4049,18 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             updateLayersTab();
             tabs.insertTab(bundle.getString("Layers"), null, layersPanel, "", 0);
             featuresPanel = new FeatureSelectionPanel(bundle, this);
-            tabs.insertTab(bundle.getString("Features"), null, featuresPanel, "", 1);
-            
+            //tabs.insertTab(bundle.getString("Features"), null, featuresPanel, "", 1);
+
             JPanel infoPanel = new JPanel(new BorderLayout());
             infoPanel.add(buildProjectTreePanel());
-            
-            tabs.insertTab("Information", null, infoPanel, "", 2);
-            
+
+            tabs.insertTab("Information", null, infoPanel, "", 1);
+
             JPanel resultsPanel = new JPanel(new BorderLayout());
             resultsPanel.add(buildResultsPanel());
-            
-            tabs.insertTab("Results", null, resultsPanel, "", 3);
-            
+
+            tabs.insertTab("Results", null, resultsPanel, "", 2);
+
             return tabs;
         } catch (Exception e) {
             showFeedback(e.toString());
@@ -4387,7 +4404,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                                         });
                                         //mi.setActionCommand("editScript");
                                         pm.add(mi);
-                                        
+
                                         mi = new JMenuItem(bundle.getString("UpdateScript"));
                                         mi.addActionListener(new ActionListener() {
                                             @Override
@@ -4399,7 +4416,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                                             }
                                         });
                                         pm.add(mi);
-                                        
+
                                         pm.show((JComponent) e.getSource(), e.getX(), e.getY());
 
                                     }
@@ -5491,6 +5508,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         mapinfo.setPageFormat(defaultPageFormat);
         mapinfo.setDefaultFont(defaultFont);
         mapinfo.setMargin(defaultMapMargin);
+        mapinfo.setPageVisible(false);
 
         MapArea ma = new MapArea(bundle.getString("MapArea").replace(" ", "") + "1");
         ma.setUpperLeftX(-32768);
@@ -5523,6 +5541,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             mapinfo.setPageFormat(defaultPageFormat);
             mapinfo.setDefaultFont(defaultFont);
             mapinfo.setMargin(defaultMapMargin);
+            mapinfo.setPageVisible(false);
 
             MapArea ma = new MapArea(bundle.getString("MapArea").replace(" ", "") + "1");
             ma.setUpperLeftX(-32768);
@@ -6235,7 +6254,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     /**
      * Changes the palette of a displayed raster layer.
      */
-    
     public void changePalette() {
         int mapNum;
         int mapAreaNum;
@@ -6555,7 +6573,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             }
         }
     }
-    
+
     @Override
     public void zoomIn() {
         int mapNum;
@@ -6585,7 +6603,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             refreshMap(false);
         }
     }
-    
+
     @Override
     public void zoomOut() {
         int mapNum;
@@ -7512,7 +7530,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         zoomMenuItem.setState(false);
         zoomOutMenuItem.setState(false);
         panMenuItem.setState(false);
-        tabs.setSelectedIndex(2);
+        tabs.setSelectedIndex(1);
         if (!selectFeature.isSelected()) {
             selectFeature.setSelected(true);
         }
@@ -8020,7 +8038,155 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             case "deleteLastNodeInFeature":
                 deleteLastNodeInFeature();
                 break;
-
+            case "newProject":
+                try {
+                    ProjectDialog pd = new ProjectDialog();
+                } catch (IOException ex) {
+                    logger.log(Level.SEVERE, "WhiteboxGuiClone.newProject", ex);
+                }
+                break;
+            case "saveProject":
+                ProjectBuilder pb = new ProjectBuilder(projNameFld.getText(), projLocation.getText(), watershedDirectory);
+                break;
+            case "newScenario":
+                ScenarioDialog sd = new ScenarioDialog();
+                break;
+            case "baseScenario":
+                try {
+                    wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                    wb.getGlassPane().setVisible(true);
+                    ScenarioBuilder scH = new ScenarioBuilder("historic", true, true, spatialDirectory);
+                    ScenarioBuilder scC = new ScenarioBuilder("conventional", true, false, spatialDirectory);
+                    wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+                    wb.getGlassPane().setVisible(true);
+                    webs.remove(projPanel);
+                    webs.add(scenPanel);
+                    projSep.setVisible(true);
+                    newScen.setVisible(true);
+                    editScen.setVisible(true);
+                    delScen.setVisible(true);
+                    scenSep.setVisible(true);
+                    dams.setVisible(true);
+                    ponds.setVisible(true);
+                    grazing.setVisible(true);
+                    tillage.setVisible(true);
+                    forage.setVisible(true);
+                    //mtb.removeAll();
+                    splitPane3.setResizeWeight(0.35);
+                    //mtb.insertTab("WEBs Interface", null, splitPane3, "", 0);
+                    //mtb.insertTab("Drawing Area", null, drawingArea, "", 1);
+                    //mtb.setMaximumSize(new Dimension(150, 50));
+                    //mtb.setPreferredSize(new Dimension(splitterLoc1, 50));
+                    //mtb.setSelectedIndex(0);
+                    splitPane3.repaint();
+                    wb.repaint();
+                    wb.validate();
+                } catch (ClassNotFoundException | SQLException | IOException ex) {
+                    logger.log(Level.SEVERE, "WhiteboxGui.baseScenario", ex);
+                }
+                break;
+            case "damsBmp":
+                mtb.setSelectedIndex(1);
+                ptb.setSelectedIndex(0);
+                if (!damMap) {
+                    newMap("Small Dam BMP");
+                    addLayer(spatialDirectory + "subbasin.shp");
+                    addLayer(spatialDirectory + "small_dam.shp");
+                    damMap = true;
+                    openDam = activeMap;
+                    miDam = openMaps.get(openDam);
+                } else {
+                    miDam = openMaps.get(openDam);
+                    activeMap = openDam;
+                    ma = miDam.getActiveMapArea();
+                    ma.setActiveLayer(ma.getNumLayers() - 1);
+                    drawingArea.setMapInfo(miDam);
+                    refreshMap(true);
+                }
+                tableView.removeAll();
+                showAttributesFile();
+                wb.validate();
+                break;
+            case "pondsBmp":
+                mtb.setSelectedIndex(1);
+                ptb.setSelectedIndex(0);
+                if (!pondMap) {
+                    newMap("Holding Ponds BMP");
+                    addLayer(spatialDirectory + "subbasin.shp");
+                    addLayer(spatialDirectory + "cattle_yard.shp");
+                    pondMap = true;
+                    openPond = activeMap;
+                    miPond = openMaps.get(openPond);
+                } else {
+                    miPond = openMaps.get(openPond);
+                    activeMap = openPond;
+                    ma = miPond.getActiveMapArea();
+                    ma.setActiveLayer(ma.getNumLayers() - 1);
+                    drawingArea.setMapInfo(miPond);
+                    refreshMap(true);
+                }
+                wb.validate();
+                break;
+            case "grazingBmp":
+                mtb.setSelectedIndex(1);
+                ptb.setSelectedIndex(0);
+                if (!grazeMap) {
+                    newMap("Grazing Area BMP");
+                    addLayer(spatialDirectory + "subbasin.shp");
+                    addLayer(spatialDirectory + "grazing.shp");
+                    grazeMap = true;
+                    openGraze = activeMap;
+                    miGraze = openMaps.get(openGraze);
+                } else {
+                    miGraze = openMaps.get(openGraze);
+                    activeMap = openGraze;
+                    ma = miGraze.getActiveMapArea();
+                    ma.setActiveLayer(ma.getNumLayers() - 1);
+                    drawingArea.setMapInfo(miGraze);
+                    refreshMap(true);
+                }
+                wb.validate();
+                break;
+            case "tillageBmp":
+                mtb.setSelectedIndex(1);
+                ptb.setSelectedIndex(0);
+                if (!tillMap) {
+                    newMap("Tillage BMP");
+                    addLayer(spatialDirectory + "land2010_by_land_id.shp");
+                    tillMap = true;
+                    openTill = activeMap;
+                    miTill = openMaps.get(openTill);
+                } else {
+                    miTill = openMaps.get(openTill);
+                    activeMap = openTill;
+                    ma = miTill.getActiveMapArea();
+                    ma.setActiveLayer(ma.getNumLayers() - 1);
+                    drawingArea.setMapInfo(miTill);
+                    refreshMap(true);
+                }
+                wb.validate();
+                break;
+            case "forageBmp":
+                mtb.setSelectedIndex(1);
+                ptb.setSelectedIndex(0);
+                if (!forageMap) {
+                    newMap("Forage BMP");
+                    addLayer(spatialDirectory + "land2010_by_land_id.shp");
+                    forageMap = true;
+                    openForage = activeMap;
+                    miForage = openMaps.get(openForage);
+                } else {
+                    miForage = openMaps.get(openForage);
+                    activeMap = openForage;
+                    ma = miForage.getActiveMapArea();
+                    ma.setActiveLayer(ma.getNumLayers() - 1);
+                    drawingArea.setMapInfo(miForage);
+                    refreshMap(true);
+                }
+                wb.validate();
+                break;
+            default:
+                break;
         }
 
         selectedMapAndLayer[0] = -1;
