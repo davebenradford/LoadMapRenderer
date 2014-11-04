@@ -36,10 +36,10 @@ Icon
 .Spotlight-V100
 .Trashes
 /build/
-/dist/
-/backup resources/
-/res/resources/STC
-/res/Projects/
+${dist.dir}/
+backup resources/
+res/resources/STC
+res/Projects/
 /bckuplog/
 
 # Compiler files
