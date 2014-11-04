@@ -36,6 +36,8 @@ Icon
 .Spotlight-V100
 .Trashes
 /build/
+/dist/
+/logs/
 ${dist.dir}/
 /backup resources/
 /res/resources/STC
