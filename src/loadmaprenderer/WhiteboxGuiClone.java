@@ -48,6 +48,8 @@ import javax.script.*;
 import javax.swing.*;
 import javax.swing.JToolBar.Separator;
 import javax.swing.border.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -55,6 +57,8 @@ import javax.swing.tree.TreePath;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import nl.knaw.dans.common.dbflib.CorruptedTableException;
+import nl.knaw.dans.common.dbflib.Table;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -66,8 +70,13 @@ import whitebox.cartographic.*;
 import whitebox.cartographic.MapArea;
 import whitebox.cartographic.MapInfo;
 import whitebox.geospatialfiles.RasterLayerInfo;
+import whitebox.geospatialfiles.ShapeFile;
 import whitebox.geospatialfiles.VectorLayerInfo;
+import whitebox.geospatialfiles.shapefile.ShapeFileRecord;
 import whitebox.geospatialfiles.shapefile.ShapeTypeDimension;
+import whitebox.geospatialfiles.shapefile.attributes.AttributeTable;
+import whitebox.geospatialfiles.shapefile.attributes.DBFException;
+import whitebox.geospatialfiles.shapefile.attributes.DBFField;
 import whitebox.interfaces.*;
 import whitebox.interfaces.InteropPlugin.InteropPluginType;
 import whitebox.interfaces.MapLayer.MapLayerType;
@@ -110,7 +119,7 @@ import whiteboxgis.user_interfaces.ViewTextDialog;
  * GNU Public License. <http://www.gnu.org/licenses/>.
  */
 @SuppressWarnings("unchecked")
-public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionListener, WhiteboxPluginHost, Communicator {
+public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionListener, WhiteboxPluginHost, Communicator, ChangeListener{
 
     public static final Logger logger = Logger.getLogger(WhiteboxGuiClone.class.getPackage().getName());
     private static PluginService pluginService = null;
@@ -131,10 +140,11 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private String paletteDirectory;
     private String logDirectory;
 
-    private String projectDirectory;
+    public String wbProjectDirectory;
     private String watershedDirectory;
     private String spatialDirectory;
     private String txtInOutDirectory;
+    private boolean hasBase = false;
 
     private String defaultQuantPalette;
     private String defaultQualPalette;
@@ -147,23 +157,48 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     //Tab Index for Drawing Area
     private int ptbTabsIndex = 0;
     private int mtbTabsIndex = 0;
+    
+    private AttributesFileViewer afv;
 
     //BMP Map Values
     private boolean damMap = false;
-    private int openDam;
+    private int openDam = -1;
     private MapInfo miDam;
+    private int[] damData = null;
     private boolean pondMap = false;
-    private int openPond;
+    private int openPond = -1;
     private MapInfo miPond;
+    private int[] pondData = null;
     private boolean grazeMap = false;
-    private int openGraze;
+    private int openGraze = -1;
     private MapInfo miGraze;
+    private int[] grazeData = null;
     private boolean tillMap = false;
-    private int openTill;
+    private int openTill = -1;
     private MapInfo miTill;
+    private int[] tillData = null;
     private boolean forageMap = false;
-    private int openForage;
+    private int openForage = -1;
     private MapInfo miForage;
+    private int[] forageData = null;
+    private int openResults = -1;
+    private MapInfo miResults;
+    private boolean resultsMap = false;
+    private int itemIndex;
+    public String currentShapeFile;
+    public String[] resultsShapeFiles = new String[4];
+    public int[] currentData;
+    public int userScenarioIndex = -1;
+    public int userScenarioLimit = 100;
+    public ScenarioBuilder currentScenario;
+    public ScenarioBuilder baseHistoric;
+    public ScenarioBuilder baseConventional;
+    public ScenarioBuilder[] userScenarios = new ScenarioBuilder[userScenarioLimit];
+    private VectorLayerInfo vli;
+    private ResultDisplayFrame rdf;
+    private Project project;
+    private boolean noChart = true;
+    private boolean resultsOn = false;
 
     // Whitebox Tabs
     private int qlTabsIndex = 0;
@@ -178,12 +213,15 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private JSplitPane splitPane;
     private JSplitPane splitPane2;
     private JSplitPane splitPane3;
+    private JSplitPane splitPane4;
 
     // WEBs Components
     public JLabel projLocation;
     public JLabel spatLocation;
     public JLabel swatLocation;
+    public JTextArea scenDescFld;
     public JTextField projNameFld;
+    public JTextField scenNameFld;
     public JButton saveProj;
     private Separator projSep;
     private Separator scenSep;
@@ -195,8 +233,35 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private JButton newScen;
     private JButton editScen;
     private JButton delScen;
+    public JButton btnSaveSc;
+    public JButton btnSaveAsSc;
     private JRadioButton rbConvTill;
     private JRadioButton rbZeroTill;
+    private JRadioButton rbOnSite;
+    private JRadioButton rbOffSite;
+    private JRadioButton tfRbField;
+    private JRadioButton tfRbFarm;
+    private JRadioButton tfRbSubbasin;
+    
+    // Results Components
+    private JPanel bmpPanel;
+    private JPanel gLevelPanel;
+    private JPanel tfLevelPanel;
+    private JRadioButton gRbGraze;
+    private JRadioButton gRbSubbasin;
+    private JRadioButton rbOnlySwat;
+    private JRadioButton rbOnlyEcon;
+    private JRadioButton rbIntegrate;
+    private JComboBox jcbComp;
+    private JComboBox jcbSwat;
+    private JComboBox jcbEcon;
+    private JComboBox jcbTillFor;
+    private JCheckBox cbDams;
+    private JCheckBox cbPonds;
+    private JCheckBox cbGraze;
+    private JCheckBox cbTillFor;
+    private JSlider startSlide;
+    private JSlider endSlide;    
 
     // WEBs Panels
     public JPanel webs;
@@ -207,7 +272,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
     private JPanel bmpSection;
     private JPanel controlSection;
 
-    // 
     private JTabbedPane tabs = new JTabbedPane();
     private JTree tree = null;
     private JTabbedPane qlTabs = null;
@@ -299,7 +363,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             wb.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             wb.setVisible(true);
         } catch (InvocationTargetException e) {
-            logger.log(Level.SEVERE, "WhiteboxGui.Main", e);
+            logger.log(Level.SEVERE, "WhiteboxGuiClone.Main", e);
         }
     }
     private String retFile;
@@ -376,11 +440,14 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 // Step one level up as we are only interested in the
                 // directory containing the class files
                 applicationDirectory = new File(applicationDirectory).getParent();
+//                applicationDirectory = new File(applicationDirectory).getParent();
+//                applicationDirectory = new File(applicationDirectory).getParent();
+//                applicationDirectory = new File(applicationDirectory).getParent();
             }
             resourcesDirectory = applicationDirectory + pathSep + "resources" + pathSep;
             graphicsDirectory = resourcesDirectory + "Images" + pathSep;
             
-            projectDirectory = applicationDirectory + pathSep + "Projects";
+            wbProjectDirectory = applicationDirectory + pathSep + "Projects";
             watershedDirectory = resourcesDirectory + "STC";
             spatialDirectory = resourcesDirectory + "STC" + pathSep + "Data" + pathSep + "Spatial" + pathSep;
             txtInOutDirectory = resourcesDirectory + "STC" + pathSep + "Data" + pathSep + "txtinout" + pathSep;
@@ -396,7 +463,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             if (!ld.exists()) {
                 ld.mkdirs();
             }
-            logDirectory = resourcesDirectory + "logs" + pathSep;
+            //logDirectory = resourcesDirectory + "logs" + pathSep;
 
             // set up the logger
             int limit = 1000000; // 1 Mb
@@ -1962,7 +2029,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 }
                 // See if the defaultFont was found. If not, see if Arial is available.
                 if (defaultFont == null) {
-                    String fontName = "arial";
+                    String fontName = "Arial";
                     for (String fnt : FONTS) {
                         if (fnt.toLowerCase().equals(fontName)) {
                             defaultFont = new Font(fnt, Font.PLAIN, 11);
@@ -2108,7 +2175,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         props.setProperty("defaultPageWidth", Double.toString(defaultPageFormat.getPaper().getWidth()));
         props.setProperty("printResolution", Integer.toString(getPrintResolution()));
         props.setProperty("hideAlignToolbar", Boolean.toString(hideAlignToolbar));
-        props.setProperty("defaultFont", defaultFont.getName());
+        //props.setProperty("defaultFont", defaultFont.getName());
         props.setProperty("numberOfRecentItemsToStore", Integer.toString(numberOfRecentItemsToStore));
         props.setProperty("defaultMapMargin", Double.toString(defaultMapMargin));
         props.setProperty("skipVersionNumber", skipVersionNumber);
@@ -2297,8 +2364,13 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         JPanel resultFunctionsPanel = new JPanel(new GridBagLayout());
 
         JPanel comparePanel = createPanel(new JPanel(), "Scenario", true);
-        JRadioButton rbComp = new JRadioButton("Compare with");
-        JRadioButton rbCompNot = new JRadioButton("Don't Compare");
+        JRadioButton rbComp = new JRadioButton("Compare with", false);
+        JRadioButton rbCompNot = new JRadioButton("Don't Compare", true);
+        
+        rbComp.setActionCommand("compare");
+        rbComp.addActionListener(this);
+        rbCompNot.setActionCommand("dontCompare");
+        rbCompNot.addActionListener(this);
 
         ButtonGroup compGroup = new ButtonGroup();
         compGroup.add(rbCompNot);
@@ -2310,7 +2382,8 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         comparePanel.add(rbComp, gbc);
 
         String[] compareList = {"Base Historic", "Base Conventional", "Scenarios With SWAT Results"};
-        JComboBox jcbComp = new JComboBox(compareList);
+        jcbComp = new JComboBox(compareList);
+        jcbComp.setEnabled(false);
         jcbComp.setSelectedIndex(0);
         jcbComp.addActionListener(this);
 
@@ -2321,9 +2394,14 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         resultFunctionsPanel.add(comparePanel, gbc);
 
         JPanel resultLevelPanel = createPanel(new JPanel(), "Result Level", true);
-        JRadioButton rbOnSite = new JRadioButton("On-Site");
-        JRadioButton rbOffSite = new JRadioButton("Off-Site (Outlet)");
-
+        rbOnSite = new JRadioButton("On-Site", true);
+        rbOffSite = new JRadioButton("Off-Site (Outlet)", false);
+        
+        rbOnSite.setActionCommand("onSite");
+        rbOnSite.addActionListener(this);
+        rbOffSite.setActionCommand("offSite");
+        rbOffSite.addActionListener(this);
+        
         ButtonGroup resLvlGroup = new ButtonGroup();
         resLvlGroup.add(rbOnSite);
         resLvlGroup.add(rbOffSite);
@@ -2336,11 +2414,22 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 1, 1, 1, 1.0, 0.0);
         resultFunctionsPanel.add(resultLevelPanel, gbc);
 
-        JPanel bmpPanel = createPanel(new JPanel(), "BMP", true);
-        JCheckBox cbDams = new JCheckBox("Small Dams");
-        JCheckBox cbPonds = new JCheckBox("Holding Ponds");
-        JCheckBox cbGraze = new JCheckBox("Grazing Areas");
-        JCheckBox cbTillFor = new JCheckBox("Tillage & Forage");
+        bmpPanel = createPanel(new JPanel(), "BMP", true);
+        cbDams = new JCheckBox("Small Dams", true);
+        cbPonds = new JCheckBox("Holding Ponds", true);
+        cbGraze = new JCheckBox("Grazing Areas", true);
+        cbTillFor = new JCheckBox("Tillage & Forage", true);
+        
+        cbDams.setActionCommand("damsLayerOn");
+        cbDams.addActionListener(this);
+        cbPonds.setActionCommand("pondsLayerOn");
+        cbPonds.addActionListener(this);
+        cbPonds.setEnabled(false);
+        cbGraze.setActionCommand("grazingLayerOn");
+        cbGraze.addActionListener(this);
+        cbGraze.setEnabled(false);
+        cbTillFor.setActionCommand("tillForageLevelOn");
+        cbTillFor.addActionListener(this);
 
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 0, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbDams, gbc);
@@ -2349,10 +2438,15 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 2, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbGraze, gbc);
 
-        JPanel gLevelPanel = createPanel(new JPanel(), "Level", true);
-        JRadioButton gRbGraze = new JRadioButton("Grazing Area");
-        JRadioButton gRbSubbasin = new JRadioButton("Subbasin");
+        gLevelPanel = createPanel(new JPanel(), "Level", true);
+        gRbGraze = new JRadioButton("Grazing Area", true);
+        gRbSubbasin = new JRadioButton("Subbasin", false);
 
+        gRbGraze.setActionCommand("grazingLevel");
+        gRbGraze.addActionListener(this);
+        gRbSubbasin.setActionCommand("subbasinLevel");
+        gRbSubbasin.addActionListener(this);
+        
         ButtonGroup gLevelGroup = new ButtonGroup();
         gLevelGroup.add(gRbGraze);
         gLevelGroup.add(gRbSubbasin);
@@ -2368,11 +2462,18 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 4, 1, 1, 1.0, 0.0);
         bmpPanel.add(cbTillFor, gbc);
 
-        JPanel tfLevelPanel = createPanel(new JPanel(), "Level", true);
-        JRadioButton tfRbField = new JRadioButton("Field");
-        JRadioButton tfRbFarm = new JRadioButton("Farm");
-        JRadioButton tfRbSubbasin = new JRadioButton("Subbasin");
-
+        tfLevelPanel = createPanel(new JPanel(), "Level", true);
+        tfRbField = new JRadioButton("Field", true);
+        tfRbFarm = new JRadioButton("Farm", false);
+        tfRbSubbasin = new JRadioButton("Subbasin", false);
+        
+        tfRbField.setActionCommand("fieldLevelOn");
+        tfRbField.addActionListener(this);
+        tfRbFarm.setActionCommand("farmLevelOn");
+        tfRbFarm.addActionListener(this);
+        tfRbSubbasin.setActionCommand("subbasinLevelOn");
+        tfRbSubbasin.addActionListener(this);
+        
         ButtonGroup tfLevelGroup = new ButtonGroup();
         tfLevelGroup.add(tfRbField);
         tfLevelGroup.add(tfRbFarm);
@@ -2392,10 +2493,18 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         resultFunctionsPanel.add(bmpPanel, gbc);
 
         JPanel resultPanel = createPanel(new JPanel(), "Result", true);
-        JRadioButton rbOnlySwat = new JRadioButton("Only SWAT");
-        JRadioButton rbOnlyEcon = new JRadioButton("Only Economic");
-        JRadioButton rbIntegrate = new JRadioButton("Integrated");
+        rbOnlySwat = new JRadioButton("Only SWAT", true);
+        rbOnlyEcon = new JRadioButton("Only Economic", false);
+        rbIntegrate = new JRadioButton("Integrated", false);
+        rbIntegrate.setEnabled(false);
 
+        rbOnlySwat.setActionCommand("onlySwat");
+        rbOnlySwat.addActionListener(this);
+        rbOnlyEcon.setActionCommand("onlyEconomic");
+        rbOnlyEcon.addActionListener(this);
+        rbIntegrate.setActionCommand("integrated");
+        rbIntegrate.addActionListener(this);
+        
         ButtonGroup resultGroup = new ButtonGroup();
         resultGroup.add(rbOnlySwat);
         resultGroup.add(rbOnlyEcon);
@@ -2406,7 +2515,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
 
         String[] swatList = {"Water Yield", "Sediment Yield", "Particulate Phosphorus", "Dissolved Phosphorus",
             "Total Phosphorus", "Particulate Nitrogen", "Dissolved Nitrogen", "Total Nitrogen"};
-        JComboBox jcbSwat = new JComboBox(swatList);
+        jcbSwat = new JComboBox(swatList);
         jcbSwat.setSelectedIndex(1);
         jcbSwat.addActionListener(this);
 
@@ -2415,10 +2524,11 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
 
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 2, 1, 1, 1.0, 1.0);
         resultPanel.add(rbOnlyEcon, gbc);
-
+        
         String[] econList = {"Small Dam", "Holding Ponds", "Grazing Area", "Tillage", "Forage"};
-        JComboBox jcbEcon = new JComboBox(econList);
+        jcbEcon = new JComboBox(econList);
         jcbEcon.setSelectedIndex(0);
+        jcbEcon.setEnabled(false);
         jcbEcon.addActionListener(this);
 
         gbc = setGbc(new Insets(4, 0, 4, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST, 0, 3, 1, 1, 1.0, 1.0);
@@ -2426,7 +2536,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
 
         JPanel tillForPanel = createPanel(new JPanel(), "Tillage & Forage", true);
         String[] tillForList = {"Yield", "Revenue", "Crop Cost", "Crop Return"};
-        JComboBox jcbTillFor = new JComboBox(tillForList);
+        jcbTillFor = new JComboBox(tillForList);
         jcbTillFor.setSelectedIndex(0);
         jcbTillFor.addActionListener(this);
 
@@ -2443,9 +2553,9 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         resultFunctionsPanel.add(resultPanel, gbc);
 
         JPanel timePanel = createPanel(new JPanel(), "Time", true);
-        JSlider startSlide = new JSlider(JSlider.HORIZONTAL, 1990, 2010, 1990);
-        JSlider endSlide = new JSlider(JSlider.HORIZONTAL, 1990, 2010, 2010);
-
+        startSlide = new JSlider(JSlider.HORIZONTAL, 1991, 2010, 1991);
+        endSlide = new JSlider(JSlider.HORIZONTAL, 1991, 2010, 2010);
+        
         startSlide.setMinorTickSpacing(1);
         startSlide.setPaintTicks(true);
         endSlide.setMinorTickSpacing(1);
@@ -2614,14 +2724,14 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         GridBagConstraints gbc = setGbc(new Insets(16, 70, 16, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 1, 1, 1, 0.2, 0.0);
         basicScen.add(scenNameLbl, gbc);
 
-        JTextField scenNameFld = new JTextField("PLACEHOLDER", 82);
+        scenNameFld = new JTextField("PLACEHOLDER", 82);
         gbc = setGbc(new Insets(0, 4, 0, 4), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 1, 1, 1, 0.8, 0.0);
         basicScen.add(scenNameFld, gbc);
 
         JLabel filler = new JLabel();
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.BOTH, GridBagConstraints.WEST, 2, 1, 1, 2, 1.0, 0.0);
         basicScen.add(filler, gbc);
-
+        
         JLabel scenDescLbl = new JLabel("Scenario Description", SwingConstants.RIGHT);
         gbc = setGbc(new Insets(0, 46, 16, 0), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 2, 1, 1, 0.2, 0.0);
         basicScen.add(scenDescLbl, gbc);
@@ -2684,29 +2794,197 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
 
         controlSection = createPanel(new JPanel(), "Controls", true);
 
-        JButton btnSaveSc = createScenarioPanelButton(new JButton("Save", new ImageIcon(graphicsDirectory + "picture_save_32x32.png")), "Save Scenario", "empty", null, null);
+        btnSaveSc = createScenarioPanelButton(new JButton("Save", new ImageIcon(graphicsDirectory + "picture_save_32x32.png")), "Save Scenario", "saveScenario", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 0, 0, 1, 1, 0.0, 0.0);
         controlSection.add(btnSaveSc, gbc);
 
-        JButton btnSaveAsSc = createScenarioPanelButton(new JButton("Save As", new ImageIcon(graphicsDirectory + "page_save_32x32.png")), "Save Scenario As", "empty", null, null);
+        btnSaveAsSc = createScenarioPanelButton(new JButton("Save As", new ImageIcon(graphicsDirectory + "page_save_32x32.png")), "Save Scenario As", "empty", null, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 1, 0, 1, 1, 0.0, 0.0);
         controlSection.add(btnSaveAsSc, gbc);
 
-        JButton btnEconSc = createScenarioPanelButton(new JButton("Economic", new ImageIcon(graphicsDirectory + "cash_stack_32x32.png")), "Run Economic Model", "empty", null, null);
+        JButton btnEconSc = createScenarioPanelButton(new JButton("Economic", new ImageIcon(graphicsDirectory + "cash_stack_32x32.png")), "Run Economic Model", "runEconomic", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 2, 0, 1, 1, 0.0, 0.0);
         controlSection.add(btnEconSc, gbc);
 
-        JButton btnSwatSc = createScenarioPanelButton(new JButton("SWAT", new ImageIcon(graphicsDirectory + "weather_snow_32x32.png")), "Run SWAT Model", "empty", null, null);
+        JButton btnSwatSc = createScenarioPanelButton(new JButton("SWAT", new ImageIcon(graphicsDirectory + "weather_snow_32x32.png")), "Run SWAT Model", "runSwat", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 3, 0, 1, 1, 0.0, 0.0);
         controlSection.add(btnSwatSc, gbc);
 
-        JButton btnResultSc = createScenarioPanelButton(new JButton("Results", new ImageIcon(graphicsDirectory + "3d_glasses_32x32.png")), "View Scenario Results", "empty", null, null);
+        JButton btnResultSc = createScenarioPanelButton(new JButton("Results", new ImageIcon(graphicsDirectory + "3d_glasses_32x32.png")), "View Scenario Results", "results", this, null);
         gbc = setGbc(new Insets(4, 16, 4, 16), GridBagConstraints.NONE, GridBagConstraints.WEST, 4, 0, 1, 1, 1.0, 0.0);
         controlSection.add(btnResultSc, gbc);
 
         gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 0, 2, 1, 1, 1.0, 0.25);
         scenPanel.add(controlSection, gbc);
         scenPanel.validate();
+    }
+    
+    public void updateSelectedFeaturesList(VectorLayerInfo vli, String shapeName) throws Exception {
+        try {
+            ArrayList<Integer> selected = vli.getSelectedFeatureNumbers();
+            ShapeFile sf = new ShapeFile(shapeName);
+            AttributeTable aTable = sf.getAttributeTable();
+            if(resultsOn) {
+                for(int i = 0; i < selected.size(); i++) {
+                    double valueX = (double) aTable.getValue(selected.get(i), "ID");
+                    rdf.SetFeatureID((int) Math.round(valueX), false);
+                    if(shapeName.contains("grazing")) {
+                        rdf.SetBMPType(BMPType.Grazing, true);
+                    }
+                    else if(shapeName.contains("pond")) {
+                        rdf.SetBMPType(BMPType.Holding_Pond, true);
+                    }
+                    else if(shapeName.contains("dam")) {
+                        rdf.SetBMPType(BMPType.Small_Dam, true);
+                    }
+                    else if(shapeName.contains("land2010")) {
+                        rdf.SetBMPType(BMPType.Tillage_Field, true);
+                    }
+                    else if(shapeName.contains("farm2010")) {
+                        rdf.SetBMPType(BMPType.Tillage_Farm, true);
+                    }
+                    else if(shapeName.contains("basin")) {
+                        rdf.SetBMPType(BMPType.Tillage_Subbasin, true);
+                    }
+                }
+                refreshSplitPaneFour();
+            }
+            else {
+                currentData = new int[selected.size()];
+                itemIndex = 0;
+                for(int i = 0; i < selected.size(); i++) {
+                    if(selected.get(i) - 1 < 363) {
+                        double valueX = (double) aTable.getValue(selected.get(i) - 1, "ID");
+                        currentData[itemIndex] = (int) Math.round(valueX);
+                        itemIndex++;
+                    }
+                }
+                if(activeMap == openDam) {
+                    damData = currentData;
+                }
+                else if(activeMap == openPond) {
+                    pondData = currentData;
+                }
+                else if(activeMap == openGraze) {
+                    grazeData = currentData;
+                }
+                else if(activeMap == openTill) {
+                    tillData = currentData;
+                }
+                else if(activeMap == openForage) {
+                    forageData = currentData;
+                }
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void setActiveMapLayer(int v){
+        vli.setOverlayNumber(v);
+    }
+    
+    private void displayBMPArrayData() {
+        System.out.println("\n***** TEST PRINTING OF BMP DATA ARRAYS *****\n");
+        System.out.println("*** SMALL DAM BMP ARRAY DATA ***\n");
+        if(damData != null) {
+            for(int i = 0; i < damData.length; i++) {
+                System.out.println(damData[i] + ": SMALL DAM DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** HOLDING POND BMP ARRAY DATA ***\n");
+        if(pondData != null) {
+            for(int i = 0; i < pondData.length; i++) {
+                System.out.println(pondData[i] + ": HOLDING POND DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** GRAZING AREA BMP ARRAY DATA ***\n");
+        if(grazeData != null) {
+            for(int i = 0; i < grazeData.length; i++) {
+                System.out.println(grazeData[i] + ": GRAZING AREA DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** TILLAGE MAP BMP ARRAY DATA ***\n");
+        if(tillData != null) {
+            for(int i = 0; i < tillData.length; i++) {
+                System.out.println(tillData[i] + ": TILLAGE DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** FORAGE MAP BMP ARRAY DATA ***\n");
+        if(forageData != null) {
+            for(int i = 0; i < forageData.length; i++) {
+                System.out.println(forageData[i] + ": FORAGE DATA AT INDEX " + i);
+            }
+        }
+    }
+    
+    public void newScenario(String name, boolean base, boolean scenarioType, String spatialDir, String projectDir) {
+        try {
+            userScenarioIndex++;
+            userScenarios[userScenarioIndex] = new ScenarioBuilder(name, false, scenarioType, spatialDir, projectDir);
+            currentScenario = userScenarios[userScenarioIndex];
+            scenNameFld.setText(name);
+            wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+            wb.getGlassPane().setVisible(true);
+            //scenDescFld.setText(descArea.getText());
+            wb.validate();
+            wb.repaint();
+            try {
+                project.addScenario(new Scenario("", "", wbProjectDirectory + "User Scenarios" + pathSep + currentScenario.getName(),
+                    ScenarioType.Normal, BMPScenerioBaseType.Conventional,
+                    BMPSelectionLevelType.Field, ""));
+            } catch (Exception ex) {
+                Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            btnSaveSc.setEnabled(true);
+            btnSaveAsSc.setEnabled(true);
+        } catch (ClassNotFoundException | SQLException | IOException ex) {
+            Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void refreshSplitPaneFour() {
+        if(noChart) {
+            try {
+                rdf = new ResultDisplayFrame(project, project.GetCurrentScenario());
+                tabs.insertTab("Results", null, rdf.GetDisplayControl(), "", 2);
+                noChart = false;
+            } catch (Exception ex) {
+                Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        splitPane4.removeAll();
+        splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, drawingArea, rdf.GetDisplayChart());
+        splitPane4.setResizeWeight(0.80);
+        splitPane4.setPreferredSize(new Dimension(100, 100));
+        splitPane4.setOneTouchExpandable(false);
+        splitPane4.setDividerSize(3);
+        splitPane4.setDividerLocation(0.80);
+        mtb.remove(1);
+        mtb.insertTab("Drawing Area", null, splitPane4, "", 1);
+        mtb.setSelectedIndex(1);
+    }
+    
+    private void mapRefreshThing(String shapefile, HashMap hash) {
+        try {
+            ShapeFile shp = new ShapeFile(shapefile);
+            AttributeTable table = shp.getAttributeTable();
+            DBFField newField = new DBFField();
+            String fieldName = "ResultsCat";
+            newField.setName(fieldName);
+            table.addField(newField);
+            DBFField category = table.getField(table.getFieldCount() - 1);
+            ShapeFileRecord shapeRec;
+            System.out.println(category.getName() + ": CATEGORY NAME");
+            
+            for(int i = 0; i < table.getNumberOfRecords(); i++) {
+                table.setValue(i, fieldName, hash.get(i));
+            }
+            
+        } catch (IOException ex) {
+            Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
     }
     
 
@@ -2758,18 +3036,23 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
             ptb = createTabbedPane();
             ptb.setMaximumSize(new Dimension(150, 50));
             ptb.setPreferredSize(new Dimension(splitterLoc1, 50));
-            ptb.setSelectedIndex(ptbTabsIndex);
+            ptb.setSelectedIndex(0);
             webs = new JPanel(new BorderLayout());
             tableView = new JPanel();
             buildNewProjectPanel();
             buildScenarioPanel();
             splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, webs, tableView);
-            splitPane3.setResizeWeight(0.6);
+            splitPane3.setResizeWeight(0.65);
+            splitPane3.setPreferredSize(new Dimension(100, 100));
             splitPane3.setOneTouchExpandable(false);
             splitPane3.setDividerSize(3);
+            splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, drawingArea, null);
+            splitPane4.setResizeWeight(0.65);
+            splitPane4.setPreferredSize(new Dimension(100, 100));
+            splitPane4.setOneTouchExpandable(false);
+            splitPane4.setDividerSize(3);
             mtb.insertTab("WEBs Interface", null, splitPane3, "", 0);
-            mtb.insertTab("Drawing Area", null, drawingArea, "", 1);
-            mtb.setMaximumSize(new Dimension(150, 50));
+            mtb.insertTab("Drawing Area", null, splitPane4, "", 1);
             mtb.setPreferredSize(new Dimension(splitterLoc1, 50));
             mtb.setSelectedIndex(mtbTabsIndex);
             splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, ptb, mtb); //splitPane3);
@@ -4058,8 +4341,6 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
 
             JPanel resultsPanel = new JPanel(new BorderLayout());
             resultsPanel.add(buildResultsPanel());
-
-            tabs.insertTab("Results", null, resultsPanel, "", 2);
 
             return tabs;
         } catch (Exception e) {
@@ -6896,7 +7177,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         mp.setVisible(true);
     }
 
-    private void showAttributesFile() {
+     private void showAttributesFile() {
         int mapNum;
         int mapAreaNum;
         int layerOverlayNum;
@@ -6936,7 +7217,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 showFeedback(messages.getString("AttributeFileDoesNotExist"));
                 return;
             }
-            AttributesFileViewer afv = new AttributesFileViewer(this, false, vli);
+            afv = new AttributesFileViewer(this, false, vli);
 //            String shapeFileName = vli.getFileName();
 //            AttributesFileViewer afv = new AttributesFileViewer(this, false, shapeFileName);
             int height = 500;
@@ -8039,24 +8320,40 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 deleteLastNodeInFeature();
                 break;
             case "newProject":
+                mtb.setSelectedIndex(0);
+                splitPane3.setResizeWeight(0.65);
                 try {
-                    ProjectDialog pd = new ProjectDialog();
+                    ProjectDialog pd = new ProjectDialog(applicationDirectory);
+                    project = new Project();
                 } catch (IOException ex) {
                     logger.log(Level.SEVERE, "WhiteboxGuiClone.newProject", ex);
                 }
                 break;
             case "saveProject":
+                wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                wb.getGlassPane().setVisible(true);
                 ProjectBuilder pb = new ProjectBuilder(projNameFld.getText(), projLocation.getText(), watershedDirectory);
+                wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+                wb.getGlassPane().setVisible(true);
                 break;
             case "newScenario":
-                ScenarioDialog sd = new ScenarioDialog();
+                wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                wb.getGlassPane().setVisible(true);
+                ScenarioDialog sd = new ScenarioDialog(graphicsDirectory, spatialDirectory, wbProjectDirectory + "User Scenarios" + pathSep);            
+                break;
+            case "saveScenario":
+                try {
+                    currentScenario.saveScenario(damData, pondData, grazeData, tillData, forageData);
+                } catch (SQLException ex) {
+                    Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 break;
             case "baseScenario":
                 try {
                     wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                     wb.getGlassPane().setVisible(true);
-                    ScenarioBuilder scH = new ScenarioBuilder("historic", true, true, spatialDirectory);
-                    ScenarioBuilder scC = new ScenarioBuilder("conventional", true, false, spatialDirectory);
+                    baseHistoric = new ScenarioBuilder("historic", true, true, spatialDirectory, wbProjectDirectory + "Base Scenarios" + pathSep);
+                    baseConventional = new ScenarioBuilder("conventional", true, false, spatialDirectory, wbProjectDirectory + "Base Scenarios" + pathSep);
                     wb.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
                     wb.getGlassPane().setVisible(true);
                     webs.remove(projPanel);
@@ -8071,128 +8368,718 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                     grazing.setVisible(true);
                     tillage.setVisible(true);
                     forage.setVisible(true);
-                    //mtb.removeAll();
+                    btnSaveSc.setEnabled(false);
+                    btnSaveAsSc.setEnabled(false);
                     splitPane3.setResizeWeight(0.35);
-                    //mtb.insertTab("WEBs Interface", null, splitPane3, "", 0);
-                    //mtb.insertTab("Drawing Area", null, drawingArea, "", 1);
-                    //mtb.setMaximumSize(new Dimension(150, 50));
-                    //mtb.setPreferredSize(new Dimension(splitterLoc1, 50));
-                    //mtb.setSelectedIndex(0);
                     splitPane3.repaint();
                     wb.repaint();
                     wb.validate();
-                } catch (ClassNotFoundException | SQLException | IOException ex) {
-                    logger.log(Level.SEVERE, "WhiteboxGui.baseScenario", ex);
+                } catch (SQLException | IOException | ClassNotFoundException ex) {
+                    logger.log(Level.SEVERE, "WhiteboxGuiClone.baseScenario", ex);
                 }
                 break;
             case "damsBmp":
+                resultsOn = false;
                 mtb.setSelectedIndex(1);
                 ptb.setSelectedIndex(0);
+                currentShapeFile = spatialDirectory + "small_dam.shp";
                 if (!damMap) {
                     newMap("Small Dam BMP");
-                    addLayer(spatialDirectory + "subbasin.shp");
-                    addLayer(spatialDirectory + "small_dam.shp");
+                    addLayer(spatialDirectory + "boundary.shp");
+                    addLayer(spatialDirectory + "stream.shp");
+                    addLayer(currentShapeFile);
                     damMap = true;
                     openDam = activeMap;
+                    NorthArrow na = new NorthArrow("na_dam");
+                    na.setMarkerSize(100);
+                    na.setUpperLeftX(675);
+                    na.setUpperLeftY(25);
+                    MapScale ms = new MapScale("ms_dam");
+                    ms.setScaleStyle(MapScale.ScaleStyle.STANDARD);
+                    ms.setMargin(5);
+                    ms.setUpperLeftX(30);
+                    ms.setUpperLeftY(525);
+                    Legend leg = new Legend("leg_Dam");
+                    leg.setBorderVisible(true);
+                    leg.setWidth(100);
+                    leg.setHeight(150);
+                    leg.setUpperLeftX(50);
+                    leg.setUpperLeftY(365);
                     miDam = openMaps.get(openDam);
+                    leg.addMapArea(miDam.getActiveMapArea());
+                    ms.setMapArea(miDam.getActiveMapArea());
+                    openMaps.get(activeMap).addNewCartographicElement(na);
+                    openMaps.get(activeMap).addNewCartographicElement(ms);
+                    openMaps.get(activeMap).addNewCartographicElement(leg);
+                    vli = (VectorLayerInfo) miDam.getActiveMapArea().getActiveLayer();
                 } else {
                     miDam = openMaps.get(openDam);
                     activeMap = openDam;
                     ma = miDam.getActiveMapArea();
                     ma.setActiveLayer(ma.getNumLayers() - 1);
                     drawingArea.setMapInfo(miDam);
+                    vli = (VectorLayerInfo) ma.getActiveLayer();
                     refreshMap(true);
                 }
                 tableView.removeAll();
                 showAttributesFile();
+                mapRefreshThing(currentShapeFile);
+                splitPane3.setResizeWeight(0.65);
+                splitPane3.repaint();
+                wb.repaint();
                 wb.validate();
                 break;
             case "pondsBmp":
+                resultsOn = false;
                 mtb.setSelectedIndex(1);
                 ptb.setSelectedIndex(0);
+                currentShapeFile = spatialDirectory + "cattle_yard.shp";
                 if (!pondMap) {
                     newMap("Holding Ponds BMP");
-                    addLayer(spatialDirectory + "subbasin.shp");
-                    addLayer(spatialDirectory + "cattle_yard.shp");
+                    addLayer(spatialDirectory + "boundary.shp");
+                    addLayer(spatialDirectory + "stream.shp");
+                    addLayer(currentShapeFile);
                     pondMap = true;
                     openPond = activeMap;
+                    NorthArrow na = new NorthArrow("na_pond");
+                    na.setMarkerSize(100);
+                    na.setUpperLeftX(675);
+                    na.setUpperLeftY(25);
+                    MapScale ms = new MapScale("ms_pond");
+                    ms.setScaleStyle(MapScale.ScaleStyle.STANDARD);
+                    ms.setMargin(5);
+                    ms.setUpperLeftX(30);
+                    ms.setUpperLeftY(525);
+                    Legend leg = new Legend("leg_pond");
+                    leg.setBorderVisible(true);
+                    leg.setWidth(100);
+                    leg.setHeight(150);
+                    leg.setUpperLeftX(50);
+                    leg.setUpperLeftY(365);
                     miPond = openMaps.get(openPond);
+                    leg.addMapArea(miPond.getActiveMapArea());
+                    ms.setMapArea(miPond.getActiveMapArea());
+                    openMaps.get(activeMap).addNewCartographicElement(na);
+                    openMaps.get(activeMap).addNewCartographicElement(ms);
+                    openMaps.get(activeMap).addNewCartographicElement(leg);
+                    vli = (VectorLayerInfo) miPond.getActiveMapArea().getActiveLayer();
                 } else {
                     miPond = openMaps.get(openPond);
                     activeMap = openPond;
                     ma = miPond.getActiveMapArea();
                     ma.setActiveLayer(ma.getNumLayers() - 1);
                     drawingArea.setMapInfo(miPond);
+                    vli = (VectorLayerInfo) ma.getActiveLayer();
                     refreshMap(true);
                 }
+                tableView.removeAll();
+                showAttributesFile();
+                splitPane3.setResizeWeight(0.65);
+                splitPane3.repaint();
+                wb.repaint();
                 wb.validate();
                 break;
             case "grazingBmp":
+                resultsOn = false;
                 mtb.setSelectedIndex(1);
                 ptb.setSelectedIndex(0);
+                currentShapeFile = spatialDirectory + "grazing.shp";
                 if (!grazeMap) {
                     newMap("Grazing Area BMP");
-                    addLayer(spatialDirectory + "subbasin.shp");
-                    addLayer(spatialDirectory + "grazing.shp");
+                    addLayer(spatialDirectory + "boundary.shp");
+                    addLayer(spatialDirectory + "stream.shp");
+                    addLayer(currentShapeFile);
                     grazeMap = true;
                     openGraze = activeMap;
+                    NorthArrow na = new NorthArrow("na_graze");
+                    na.setMarkerSize(100);
+                    na.setUpperLeftX(675);
+                    na.setUpperLeftY(25);
+                    MapScale ms = new MapScale("ms_graze");
+                    ms.setScaleStyle(MapScale.ScaleStyle.STANDARD);
+                    ms.setMargin(5);
+                    ms.setUpperLeftX(30);
+                    ms.setUpperLeftY(525);
+                    Legend leg = new Legend("leg_graze");
+                    leg.setBorderVisible(true);
+                    leg.setWidth(100);
+                    leg.setHeight(150);
+                    leg.setUpperLeftX(50);
+                    leg.setUpperLeftY(365);
                     miGraze = openMaps.get(openGraze);
+                    leg.addMapArea(miGraze.getActiveMapArea());
+                    ms.setMapArea(miGraze.getActiveMapArea());
+                    openMaps.get(activeMap).addNewCartographicElement(na);
+                    openMaps.get(activeMap).addNewCartographicElement(ms);
+                    openMaps.get(activeMap).addNewCartographicElement(leg);
+                    vli = (VectorLayerInfo) miGraze.getActiveMapArea().getActiveLayer();
                 } else {
                     miGraze = openMaps.get(openGraze);
                     activeMap = openGraze;
                     ma = miGraze.getActiveMapArea();
                     ma.setActiveLayer(ma.getNumLayers() - 1);
                     drawingArea.setMapInfo(miGraze);
+                    vli = (VectorLayerInfo) ma.getActiveLayer();
                     refreshMap(true);
                 }
+                tableView.removeAll();
+                showAttributesFile();
+                splitPane3.setResizeWeight(0.65);
+                splitPane3.repaint();
+                wb.repaint();
                 wb.validate();
                 break;
             case "tillageBmp":
+                resultsOn = false;
                 mtb.setSelectedIndex(1);
                 ptb.setSelectedIndex(0);
+                currentShapeFile = spatialDirectory + "land2010_by_land_id.shp";
                 if (!tillMap) {
                     newMap("Tillage BMP");
-                    addLayer(spatialDirectory + "land2010_by_land_id.shp");
+                    addLayer(currentShapeFile);
                     tillMap = true;
                     openTill = activeMap;
+                    NorthArrow na = new NorthArrow("na_till");
+                    na.setMarkerSize(100);
+                    na.setUpperLeftX(675);
+                    na.setUpperLeftY(25);
+                    MapScale ms = new MapScale("ms_till");
+                    ms.setScaleStyle(MapScale.ScaleStyle.STANDARD);
+                    ms.setMargin(5);
+                    ms.setUpperLeftX(30);
+                    ms.setUpperLeftY(525);
+                    Legend leg = new Legend("leg_till");
+                    leg.setBorderVisible(true);
+                    leg.setWidth(125);
+                    leg.setHeight(150);
+                    leg.setUpperLeftX(40);
+                    leg.setUpperLeftY(365);
                     miTill = openMaps.get(openTill);
+                    leg.addMapArea(miTill.getActiveMapArea());
+                    ms.setMapArea(miTill.getActiveMapArea());
+                    openMaps.get(activeMap).addNewCartographicElement(na);
+                    openMaps.get(activeMap).addNewCartographicElement(ms);
+                    openMaps.get(activeMap).addNewCartographicElement(leg);
+                    vli = (VectorLayerInfo) miTill.getActiveMapArea().getActiveLayer();
                 } else {
                     miTill = openMaps.get(openTill);
                     activeMap = openTill;
                     ma = miTill.getActiveMapArea();
                     ma.setActiveLayer(ma.getNumLayers() - 1);
                     drawingArea.setMapInfo(miTill);
+                    vli = (VectorLayerInfo) ma.getActiveLayer();
                     refreshMap(true);
                 }
+                currentScenario.setTillageType(0);
+                tableView.removeAll();
+                showAttributesFile();
+                splitPane3.setResizeWeight(0.65);
+                splitPane3.repaint();
+                wb.repaint();
                 wb.validate();
                 break;
             case "forageBmp":
+                resultsOn = false;
                 mtb.setSelectedIndex(1);
                 ptb.setSelectedIndex(0);
+                currentShapeFile = spatialDirectory + "land2010_by_land_id.shp";
                 if (!forageMap) {
                     newMap("Forage BMP");
-                    addLayer(spatialDirectory + "land2010_by_land_id.shp");
+                    addLayer(currentShapeFile);
                     forageMap = true;
                     openForage = activeMap;
+                    NorthArrow na = new NorthArrow("na_forage");
+                    na.setMarkerSize(100);
+                    na.setUpperLeftX(675);
+                    na.setUpperLeftY(25);
+                    MapScale ms = new MapScale("ms_forage");
+                    ms.setScaleStyle(MapScale.ScaleStyle.STANDARD);
+                    ms.setMargin(5);
+                    ms.setUpperLeftX(30);
+                    ms.setUpperLeftY(525);
+                    Legend leg = new Legend("leg_forage");
+                    leg.setBorderVisible(true);
+                    leg.setWidth(125);
+                    leg.setHeight(150);
+                    leg.setUpperLeftX(40);
+                    leg.setUpperLeftY(365);
                     miForage = openMaps.get(openForage);
+                    leg.addMapArea(miForage.getActiveMapArea());
+                    ms.setMapArea(miForage.getActiveMapArea());
+                    openMaps.get(activeMap).addNewCartographicElement(na);
+                    openMaps.get(activeMap).addNewCartographicElement(ms);
+                    openMaps.get(activeMap).addNewCartographicElement(leg);
+                    vli = (VectorLayerInfo) miForage.getActiveMapArea().getActiveLayer();
                 } else {
                     miForage = openMaps.get(openForage);
                     activeMap = openForage;
                     ma = miForage.getActiveMapArea();
                     ma.setActiveLayer(ma.getNumLayers() - 1);
                     drawingArea.setMapInfo(miForage);
+                    vli = (VectorLayerInfo) ma.getActiveLayer();
                     refreshMap(true);
                 }
+                tableView.removeAll();
+                showAttributesFile();
+                splitPane3.setResizeWeight(0.65);
+                splitPane3.repaint();
+                wb.repaint();
                 wb.validate();
                 break;
+            case("runEconomic"):
+                try {
+                    currentScenario.runEconomic(damData, pondData, grazeData, tillData, forageData);
+                } catch (SQLException ex) {
+                    Logger.getLogger(WhiteboxGuiClone.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("runSwat"):
+                try {
+                    Project project = new Project();
+                    String scenarioDB, scenarioPath;
+                    if(currentScenario.isBase()) {
+                        scenarioDB = wbProjectDirectory + "Base Scenarios" + pathSep + currentScenario.getName();
+                        scenarioPath = wbProjectDirectory + "Base Scenarios" + pathSep;
+                        project.addScenario(new Scenario("", "", scenarioDB,
+                            ScenarioType.Base_Conventional, BMPScenerioBaseType.Conventional, 
+                            BMPSelectionLevelType.Field, ""));
+                    }
+                    else {
+                        scenarioDB = wbProjectDirectory + "User Scenarios" + pathSep + currentScenario.getName();
+                        scenarioPath = wbProjectDirectory + "User Scenarios" + pathSep;
+                        project.addScenario(new Scenario("", "", scenarioDB,
+                            ScenarioType.Normal, BMPScenerioBaseType.Conventional, 
+                            BMPSelectionLevelType.Field, ""));
+                    }
+                    File database = new File(scenarioDB);
+                    if(!database.exists()) database.createNewFile();
+                    //ScenarioEconomicModel Eco = new ScenarioEconomicModel(scenario);
+                    System.out.println("--------------Start economic model!-------------");
+                    //Eco.RunEconomic();
+                    currentScenario.runEconomic(damData, pondData, grazeData, tillData, forageData);
+                    System.out.println("----------Economic simulation finished!----------");
+                    System.out.println("\n----------------Start SWAT model!----------------");
+                    project.GetCurrentScenario().RunSWAT();
+                    System.out.println("------------SWAT simulation finished!------------");
+                } catch(Exception ex) {
+                    logger.log(Level.SEVERE, "WhiteboxGuiClone.newProject", ex);
+                }
+                break;
+            case("results"):
+                refreshSplitPaneFour();
+                resultsOn = true;
+                mtb.setSelectedIndex(1);
+                ptb.setSelectedIndex(2);
+                resultsShapeFiles[0] = spatialDirectory + "land2010_by_land_id.shp";
+                resultsShapeFiles[1] = spatialDirectory + "small_dam.shp";
+                resultsShapeFiles[2] = spatialDirectory + "holding_pond.shp";
+                resultsShapeFiles[3] = spatialDirectory + "grazing.shp";
+                if (!resultsMap) {
+                    newMap("Results Map");
+                    for (String rsf : resultsShapeFiles) {
+                       addLayer(rsf);
+                    }
+                    resultsMap = true;
+                    openResults = activeMap;
+                    NorthArrow na = new NorthArrow("na_results");
+                    na.setMarkerSize(100);
+                    na.setUpperLeftX(675);
+                    na.setUpperLeftY(25);
+                    MapScale ms = new MapScale("ms_results");
+                    ms.setScaleStyle(MapScale.ScaleStyle.STANDARD);
+                    ms.setMargin(5);
+                    ms.setUpperLeftX(30);
+                    ms.setUpperLeftY(525);
+                    Legend leg = new Legend("leg_results");
+                    leg.setBorderVisible(true);
+                    leg.setWidth(125);
+                    leg.setHeight(150);
+                    leg.setUpperLeftX(40);
+                    leg.setUpperLeftY(365);
+                    miResults = openMaps.get(openResults);
+                    leg.addMapArea(miResults.getActiveMapArea());
+                    ms.setMapArea(miResults.getActiveMapArea());
+                    openMaps.get(activeMap).addNewCartographicElement(na);
+                    openMaps.get(activeMap).addNewCartographicElement(ms);
+                    openMaps.get(activeMap).addNewCartographicElement(leg);
+                    vli = (VectorLayerInfo) miResults.getActiveMapArea().getActiveLayer();
+                } else {
+                    miResults = openMaps.get(openResults);
+                    activeMap = openResults;
+                    ma = miResults.getActiveMapArea();
+                    ma.setActiveLayer(ma.getNumLayers() - 1);
+                    drawingArea.setMapInfo(miResults);
+                    vli = (VectorLayerInfo) ma.getActiveLayer();
+                    refreshMap(true);
+                }
+                tableView.removeAll();
+                //showAttributesFile();
+                splitPane3.setResizeWeight(0.65);
+                splitPane3.repaint();
+                wb.repaint();
+                wb.validate();
+                break;
+            case("dontCompare"):
+                jcbComp.setEnabled(false);
+                rbIntegrate.setEnabled(false);
+                try {
+                    rdf.SetCompareType(ResultDisplayScenarioCompareType.NoCompare, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("compare"):
+                jcbComp.setEnabled(true);
+                rbIntegrate.setEnabled(true);
+                try {
+                    rdf.SetCompareType(ResultDisplayScenarioCompareType.Compare, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("compareTo"):
+                try {
+                    //rdf.SetCompareScenario(compareScenario, true);
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("onSite"):
+                bmpPanel.setEnabled(true);
+                cbDams.setEnabled(true);
+                cbPonds.setEnabled(true);
+                cbGraze.setEnabled(true);
+                cbTillFor.setEnabled(true);
+                gLevelPanel.setEnabled(true);
+                gRbGraze.setEnabled(true);
+                gRbSubbasin.setEnabled(true);
+                tfLevelPanel.setEnabled(true);
+                tfRbField.setEnabled(true);
+                tfRbFarm.setEnabled(true);
+                tfRbSubbasin.setEnabled(true);
+                jcbEcon.setEnabled(false); // H.Shao
+                try {
+                    rdf.SetResultLevel(ResultDisplayResultLevelType.OnSite, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("offSite"):
+                bmpPanel.setEnabled(false);
+                cbDams.setEnabled(false);
+                cbPonds.setEnabled(false);
+                cbGraze.setEnabled(false);
+                cbTillFor.setEnabled(false);
+                gLevelPanel.setEnabled(false);
+                gRbGraze.setEnabled(false);
+                gRbSubbasin.setEnabled(false);
+                tfLevelPanel.setEnabled(false);
+                tfRbField.setEnabled(false);
+                tfRbFarm.setEnabled(false);
+                tfRbSubbasin.setEnabled(false);
+                if (rbOnlyEcon.isSelected()) {
+                    jcbEcon.setEnabled(true);
+                    jcbTillFor.setSelectedIndex(2);
+                    jcbTillFor.setEnabled(false);
+                }
+                try {
+                    rdf.SetResultLevel(ResultDisplayResultLevelType.OffSite, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("damsLayerOn"):
+                if(cbDams.isSelected()) {
+                    cbPonds.setEnabled(false);
+                    cbGraze.setEnabled(false);
+                }
+                else {
+                    cbPonds.setEnabled(true);
+                }
+                try {
+                    rdf.SetBMPType(BMPType.Small_Dam, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("pondsLayerOn"):
+                if(cbPonds.isSelected()) {
+                    cbGraze.setEnabled(false);
+                }
+                else {
+                    cbGraze.setEnabled(true);
+                }
+                try {
+                    rdf.SetBMPType(BMPType.Holding_Pond, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("grazingLayerOn"):
+                if(cbGraze.isSelected()) {
+                    gLevelPanel.setEnabled(true);
+                    gRbGraze.setEnabled(true);
+                    gRbSubbasin.setEnabled(true);
+                }
+                else {
+                    gLevelPanel.setEnabled(false);
+                    gRbGraze.setEnabled(false);
+                    gRbSubbasin.setEnabled(false);
+                }
+                break;
+            case("grazingLevel"):
+                try {
+                    rdf.SetBMPType(BMPType.Grazing, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("subbasinLevel"):
+                try {
+                    rdf.SetBMPType(BMPType.Grazing_Subbasin, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("tillForageLevelOn"):
+                if(cbTillFor.isSelected()) {
+                    tfLevelPanel.setEnabled(true);
+                    tfRbField.setEnabled(true);
+                    tfRbFarm.setEnabled(true);
+                    tfRbSubbasin.setEnabled(true);
+                }
+                else {
+                    tfLevelPanel.setEnabled(false);
+                    tfRbField.setEnabled(false);
+                    tfRbFarm.setEnabled(false);
+                    tfRbSubbasin.setEnabled(false);
+                }
+                break;
+            case("fieldLevelOn"):
+                try {
+                    rdf.SetBMPType(BMPType.Tillage_Field, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("farmLevelOn"):
+                try {
+                    rdf.SetBMPType(BMPType.Tillage_Farm, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("subbasinLevelOn"):
+                try {
+                    rdf.SetBMPType(BMPType.Tillage_Subbasin, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("onlySwat"):
+                jcbSwat.setEnabled(true);
+                jcbEcon.setEnabled(false);
+                jcbTillFor.setEnabled(false);
+                try {
+                    rdf.SetResultType(ResultDisplayResultType.SWAT, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("selectSwatResult"):
+                String entSwat = jcbSwat.getSelectedItem().toString();
+                try {
+                    switch(entSwat) {
+                        case("Water Yield"):
+                            rdf.SetSWATType(SWATResultColumnType.water, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Sediment Yield"):
+                            rdf.SetSWATType(SWATResultColumnType.sediment, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Particulate Phosphorus"):
+                            rdf.SetSWATType(SWATResultColumnType.PP, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Dissolved Phosphorus"):
+                            rdf.SetSWATType(SWATResultColumnType.DP, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Total Phosphorus"):
+                            rdf.SetSWATType(SWATResultColumnType.TP, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Particulate Nitrogen"):
+                            rdf.SetSWATType(SWATResultColumnType.PN, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Dissolved Nitrogen"):
+                            rdf.SetSWATType(SWATResultColumnType.DN, true);
+                            refreshSplitPaneFour();
+                            break;
+                        case("Total Nitrogen"):
+                            rdf.SetSWATType(SWATResultColumnType.TN, true);
+                            refreshSplitPaneFour();
+                            break;                      
+                        default:
+                            break;
+                    }
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("onlyEconomic"):
+                jcbSwat.setEnabled(false);
+                // jcbEcon.setEnabled(true); // H.Shao
+                if(rbOffSite.isSelected()){
+                    jcbEcon.setEnabled(true);
+                    jcbTillFor.setSelectedIndex(2);
+                    jcbTillFor.setEnabled(false);
+                } else {
+                    jcbEcon.setEnabled(false);
+                    jcbTillFor.setSelectedIndex(2);
+                    jcbTillFor.setEnabled(true);
+                }
+                
+                try {
+                    rdf.SetResultType(ResultDisplayResultType.Economic, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("selectEconResult"):
+                String entEcon = jcbEcon.getSelectedItem().toString();
+                try {
+                    switch(entEcon) {
+                    case("Small Dam"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        rdf.SetBMPType(BMPType.Small_Dam,true);
+                        refreshSplitPaneFour();
+                        break;
+                    case("Holding Ponds"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        rdf.SetBMPType(BMPType.Holding_Pond,true);
+                        refreshSplitPaneFour();
+                        break;
+                    case("Grazing Area"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        rdf.SetBMPType(BMPType.Grazing,true);
+                        refreshSplitPaneFour();
+                        break;
+                    case("Tillage"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        if (tfRbField.isSelected()){
+                            rdf.SetBMPType(BMPType.Tillage_Field,true);
+                            refreshSplitPaneFour();
+                        } else if  (tfRbFarm.isSelected()) {
+                            rdf.SetBMPType(BMPType.Tillage_Farm,true);
+                            refreshSplitPaneFour();
+                        } else {
+                            rdf.SetBMPType(BMPType.Tillage_Subbasin,true);
+                            refreshSplitPaneFour();
+                        }
+                        break;
+                    case("Forage"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        if (tfRbField.isSelected()){
+                            rdf.SetBMPType(BMPType.Forage_Field,true);
+                            refreshSplitPaneFour();
+                        } else if  (tfRbFarm.isSelected()) {
+                            rdf.SetBMPType(BMPType.Forage_Farm,true);
+                            refreshSplitPaneFour();
+                        } else {
+                            rdf.SetBMPType(BMPType.Forage_Subbasin,true);
+                            refreshSplitPaneFour();
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("selectTillForageResult"):
+                String entTF = jcbTillFor.getSelectedItem().toString();
+                try {
+                    switch(entTF) {
+                    case("Yield"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Yield, true);
+                        refreshSplitPaneFour();
+                        break;
+                    case("Revenue"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Revenue, true);
+                        refreshSplitPaneFour();
+                        break;
+                    case("Crop Cost"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, true);
+                        refreshSplitPaneFour();
+                        break;
+                    case("Crop Return"):
+                        rdf.SetEconomicType(ResultDisplayTillageForageEconomicResultType.net_return, true);
+                        refreshSplitPaneFour();
+                        break;
+                    default:
+                        break;
+                    }
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }                
+                break;
+            case("integrated"):
+                jcbSwat.setEnabled(true);
+                jcbEcon.setEnabled(false);
+                jcbTillFor.setEnabled(false);
+                try {
+                    rdf.SetResultType(ResultDisplayResultType.Integrated, true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("startYear"):
+                if(startSlide.getValue() > endSlide.getValue()) {
+                    startSlide.setValue(endSlide.getValue());
+                    //startSlide.updateUI();
+                }
+                try {
+                    rdf.SetStartYear(startSlide.getValue(), true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                break;
+            case("endYear"):
+                if(endSlide.getValue() < startSlide.getValue()) {
+                    endSlide.setValue(startSlide.getValue());
+                    //endSlide.updateUI();
+                }
+                try {
+                    rdf.SetStartYear(endSlide.getValue(), true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
             default:
                 break;
         }
-
         selectedMapAndLayer[0] = -1;
         selectedMapAndLayer[1] = -1;
         selectedMapAndLayer[2] = -1;
-
     }
 
     private void close() {
@@ -8232,5 +9119,36 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
 
     @Override
     public void notifyOfReturn(String ret) {
+    }
+    
+    @Override
+    public void stateChanged(ChangeEvent e) {        
+        JSlider slider = (JSlider) e.getSource();
+        slider.setToolTipText(String.valueOf(slider.getValue()));
+        if (slider.equals(startSlide)) {
+            if (slider.getValue() > endSlide.getValue()) 
+                slider.setValue(endSlide.getValue());
+            if (!slider.getValueIsAdjusting()){
+                try {
+                    rdf.SetStartYear(slider.getValue(),true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+            
+        }
+        if (slider.equals(endSlide)) {
+            if (slider.getValue() < startSlide.getValue()) 
+                    slider.setValue(startSlide.getValue());
+            if (!slider.getValueIsAdjusting()){
+                try {
+                    rdf.SetEndYear(slider.getValue(),true);
+                    refreshSplitPaneFour();
+                } catch (Exception ex) {
+                    Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
     }
 }

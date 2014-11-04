@@ -24,9 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.swing.table.AbstractTableModel;
-import whitebox.geospatialfiles.shapefile.attributes.AttributeTable;
-import whitebox.geospatialfiles.shapefile.attributes.DBFException;
-import whitebox.geospatialfiles.shapefile.attributes.DBFField;
+import whitebox.geospatialfiles.shapefile.attributes.*;
 import whitebox.geospatialfiles.shapefile.attributes.DBFField.DBFDataType;
 
 /**

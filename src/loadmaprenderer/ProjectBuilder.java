@@ -21,8 +21,16 @@ public class ProjectBuilder {
     
     /**
      * 
-     * @param filename 
+     * @param filename: String containing the name of the Project File.
+     *                  Project Files use the ".wpj" file extension.
+     * @param projectDirectory: String containing the root path to the project
+     *                          Directory.
+     * @param watershedDirectory: String containing the path to the STC directory.
+     * @param hasBase: Boolean representing whether the project has base scenarios
+     *                 linked to it.
      */
+    
+    //, boolean hasBase
     
     public ProjectBuilder(String filename, String projectDirectory, String watershedDirectory) {
         String sep = File.separator;
@@ -37,14 +45,14 @@ public class ProjectBuilder {
             File projFile = new File(projectDirectory + sep + filename);
             if(!projFile.exists()) {
                 projFile.mkdirs();
-                createdOn = "Date Created: " + ft.format(date);
+                createdOn = "Project Created: " + ft.format(date);
                 modified = "Last Modified: ";
             }
             else {
                 BufferedReader br =  new BufferedReader(new FileReader(projFile + sep + projFile.getName() + ".wpj"));
                 String temp;
                 while((temp = br.readLine()) != null)  {
-                    if(temp.contains("Created:")) {
+                    if(temp.contains("Project Created:")) {
                         createdOn = temp;
                         modified = "Last Modified: " + ft.format(date);
                     }
@@ -58,6 +66,7 @@ public class ProjectBuilder {
                 }
             }
             PrintWriter pw = new PrintWriter(projFile + sep + filename + ".wpj");
+            pw.println("\nPROJECT FILE\n");
             pw.println("Project Name: " + filename);
             pw.println("Project Location: " + projectDirectory);
             pw.println("Spatial Location: " + spatialDirectory);
@@ -76,9 +85,26 @@ public class ProjectBuilder {
             pw.println("grazing.shp");
             pw.println("farm2010.shp");
             pw.println("land2010_by_land_id.shp");
+            //if(hasBase) {
+            //    scenarioWriter(pw);
+           // }
             pw.close();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "WhiteboxGuiClone.ProjectBuilder", e);
         }
+    }
+    
+    private void scenarioWriter(PrintWriter pw) {
+        pw.println("\nSCENARIO DATA\n");
+        pw.println("Scenario Name: ");
+        pw.println("Scenario Description: ");
+        pw.println("Scenario Path: ");
+        pw.println("Scenario Created: ");
+        pw.println("Last Modified Created: ");
+        pw.println("Last Economic Run: ");
+        pw.println("Last SWAT Run: ");
+        pw.println("Scenario ID: ");
+        pw.println("Scenario Type: ");
+        pw.println("Crop BMP Level: ");
     }
 }

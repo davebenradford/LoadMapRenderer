@@ -57,14 +57,20 @@ public class ProjectDialog {
     private final JButton swatLocate;
     
     private final Font f = new Font("Sans_Serif", Font.BOLD, 12);
-    private final ImageIcon websIcon = new ImageIcon("build\\classes\\loadmaprenderer\\resources\\Images\\icon_32x32.png");
+    private final ImageIcon websIcon;
     private File dataFile;
     private final String projSource;
+    private final String imgSource;
     private String stcSource;
-    private String applicationDirectory;
+    private final String applicationDirectory;
     private final String sep = File.separator;
     
-    public ProjectDialog() throws IOException {
+    public ProjectDialog(String appDir) throws IOException {
+        applicationDirectory = appDir;
+        projSource = applicationDirectory + sep + "Projects";
+        stcSource = applicationDirectory + sep + "resources" + sep + "STC";
+        imgSource = applicationDirectory + sep + "resources" + sep + "Images" + sep;
+        websIcon = new ImageIcon(imgSource + "icon_32x32.png");
         // Initialize the Dialog Box
         frame = new JFrame("Create a New WEBs Project");
         frame.setLayout(new GridBagLayout());
@@ -73,12 +79,6 @@ public class ProjectDialog {
         frame.setResizable(false);
         frame.setIconImage(websIcon.getImage());
         frame.setLocation(frame.getWidth() / 4, frame.getHeight());
-        
-        applicationDirectory = java.net.URLDecoder.decode(getClass().getProtectionDomain().getCodeSource().getLocation().getPath(), "UTF-8");
-        applicationDirectory += getClass().getName().replace('.', File.separatorChar);
-        applicationDirectory = new File(applicationDirectory).getParent() + sep;
-        projSource = applicationDirectory + "Projects";
-        stcSource = applicationDirectory + "resources" + sep + "STC";
         
         // WEBs Project Components
         nameLbl = createLabel(new JLabel("Project Name: ", SwingConstants.RIGHT));
@@ -275,6 +275,9 @@ public class ProjectDialog {
             WhiteboxGuiClone.wb.spatLocation.setText(spatFld.getText());
             WhiteboxGuiClone.wb.swatLocation.setText(swatFld.getText());
             WhiteboxGuiClone.wb.webs.add(WhiteboxGuiClone.wb.projPanel);
+            WhiteboxGuiClone.wb.wbProjectDirectory = projFld.getText() + File.separator +
+                                                     nameFld.getText() + File.separator +
+                                                     "Scenarios" + File.separator;
             WhiteboxGuiClone.wb.validate();
             WhiteboxGuiClone.wb.repaint();
             frame.dispose();

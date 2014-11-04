@@ -31,11 +31,19 @@ import nl.knaw.dans.common.dbflib.*;
 public class ScenarioBuilder {
     private final File spatial = new File("spatial.db3");
     private final File[] dbf_tbls;
+    private final String scenarioName;
+    private final String inputConnection;
+    private final String outputConnection;
+    private boolean saving = false;
+    private final boolean isBase;
+    private final boolean scenarioType;
+    private boolean hasTillage;
+    private int tillageType;
     public static double progress;
 
     /**
      * @param scen: String containing the Scenario Name.
-     * @param isBase: Boolean value indicating whether a scenario is a base
+     * @param base: Boolean value indicating whether a scenario is a base
      *                scenario created by WEBs or a user-defined scenario.
      * @param type: Boolean value used to determine the type of scenario being
      *              created. A value of 'True' indicates an Historical scenario
@@ -45,52 +53,60 @@ public class ScenarioBuilder {
      * @throws IOException: File I/O Error when verifying existence of a DBF table.
      */
     
-    public ScenarioBuilder(String scen, boolean isBase, boolean type, String directory) throws ClassNotFoundException, SQLException, IOException {
-        File[] f = {new File(directory + "small_dam.dbf"), new File(directory + "cattle_yard.dbf"), new File(directory + "grazing.dbf"),
-                    new File(directory + "land2010_by_land_id.dbf"), new File(directory + "farm2010.dbf")};
+    public ScenarioBuilder(String scen, boolean base, boolean type, String spatialDirectory, String projectDirectory) throws ClassNotFoundException, SQLException, IOException {
+        File[] f = {new File(spatialDirectory + "small_dam.dbf"), new File(spatialDirectory + "cattle_yard.dbf"), new File(spatialDirectory + "grazing.dbf"),
+                    new File(spatialDirectory + "land2010_by_land_id.dbf"), new File(spatialDirectory + "farm2010.dbf")};
         dbf_tbls = f;
         String inDb;
         progress = 0.0;
         Class.forName("org.sqlite.JDBC");
+        isBase = base;
+        scenarioType = type;
+        hasTillage = false;
         
         if(isBase) {
             inDb = "base_" + scen + ".db3";
+            scenarioName = inDb;
         }
         else {
             inDb = scen + ".db3";
+            scenarioName = inDb;
         }
         
-        Connection cInDb3 = DriverManager.getConnection("jdbc:sqlite:" + directory + spatial);
+        inputConnection = "jdbc:sqlite:" + spatialDirectory + spatial;
+        outputConnection = "jdbc:sqlite:" + projectDirectory + inDb;
+        
+        Connection cInDb3 = DriverManager.getConnection(inputConnection);
         cInDb3.setAutoCommit(false);
         //progress = WEBsInterface.calculateProgressBaseScenario("\nOpened spatial.db3 database successfully", scenarioType, progress);
 
-        Connection cOutput = DriverManager.getConnection("jdbc:sqlite:" + inDb);
+        Connection cOutput = DriverManager.getConnection(outputConnection);
         cOutput.setAutoCommit(false);
         //progress = WEBsInterface.calculateProgressBaseScenario("\nConnection established to " + inDb + " database successfully", scenarioType, progress);
         
         try {
             Statement inStmtA = cInDb3.createStatement();
             Statement inStmtB = cInDb3.createStatement();
-            Statement outStmt = cOutput.createStatement();
+            Statement outStmtA = cOutput.createStatement();
             
-            createTables(outStmt, cOutput, inDb);
+            createTables(outStmtA, cOutput, scenarioName);
             
             String tblA = "yield_";
-            if(type) {
+            if(scenarioType) {
                 tblA += "historic";
             }
             else {
                 tblA += "conventional";
             }
-                    
-            buildCropEconFields(inStmtA, outStmt, tblA, "crop_economic_fields", cOutput);
             
-            buildCropEconFarms(inStmtA, inStmtB, outStmt, tblA, "field_farm", "crop_economic_farms", cOutput);
+            buildCropEconFields(inStmtA, outStmtA, tblA, "crop_economic_fields", cOutput);
+            
+            buildCropEconFarms(inStmtA, inStmtB, outStmtA, tblA, "field_farm", "crop_economic_farms", cOutput);
                        
-            buildCropEconSubbasins(inStmtA, inStmtB, outStmt, tblA, "field_subbasin", "crop_economic_subbasins", cOutput);
+            buildCropEconSubbasins(inStmtA, inStmtB, outStmtA, tblA, "field_subbasin", "crop_economic_subbasins", cOutput);
             
             if(type) {
-                buildHistoricScenario(inStmtA, inStmtB, outStmt, cOutput);
+                buildHistoricScenario(inStmtA, inStmtB, outStmtA, cOutput);
             }
         } catch(SQLException e) {
             Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
@@ -98,10 +114,176 @@ public class ScenarioBuilder {
             cOutput.close();
             cInDb3.close();
         }
-    } 
+    }
     
-    public void updateSmallDams() {
-        
+    private void displayBMPArrayData(int[] damData, int[] pondData, int[] grazeData, int[] tillData, int[] forageData) {
+        System.out.println("\n***** TEST PRINTING OF BMP DATA ARRAYS *****\n");
+        System.out.println("*** SMALL DAM BMP ARRAY DATA ***\n");
+        if(damData != null) {
+            for(int i = 0; i < damData.length; i++) {
+                System.out.println(damData[i] + ": SMALL DAM DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** HOLDING POND BMP ARRAY DATA ***\n");
+        if(pondData != null) {
+            for(int i = 0; i < pondData.length; i++) {
+                System.out.println(pondData[i] + ": HOLDING POND DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** GRAZING AREA BMP ARRAY DATA ***\n");
+        if(grazeData != null) {
+            for(int i = 0; i < grazeData.length; i++) {
+                System.out.println(grazeData[i] + ": GRAZING AREA DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** TILLAGE MAP BMP ARRAY DATA ***\n");
+        if(tillData != null) {
+            for(int i = 0; i < tillData.length; i++) {
+                System.out.println(tillData[i] + ": TILLAGE DATA AT INDEX " + i);
+            }
+        }
+        System.out.println("\n*** FORAGE MAP BMP ARRAY DATA ***\n");
+        if(forageData != null) {
+            for(int i = 0; i < forageData.length; i++) {
+                System.out.println(forageData[i] + ": FORAGE DATA AT INDEX " + i);
+            }
+        }
+    }
+    
+    public void setTillageType(int type) {
+        tillageType = type;
+        hasTillage = true;
+    }
+    
+    public String getName() {
+        return scenarioName;
+    }
+    
+    public boolean isBase() {
+        return isBase;
+    }
+    
+    public boolean getScenarioType() {
+        return scenarioType;
+    }
+    
+    public void runEconomic(int[] dams, int[] ponds, int[] grazing, int[] tillage, int[] forage) throws SQLException {
+        Connection cInDb3 = DriverManager.getConnection(inputConnection);
+        cInDb3.setAutoCommit(false);
+        //progress = WEBsInterface.calculateProgressBaseScenario("\nOpened spatial.db3 database successfully", scenarioType, progress);
+
+        Connection cOutput = DriverManager.getConnection(outputConnection);
+        cOutput.setAutoCommit(false);
+        //progress = WEBsInterface.calculateProgressBaseScenario("\nConnection established to " + inDb + " database successfully", scenarioType, progress);
+
+        try {
+            Statement inStmtA = cInDb3.createStatement();
+            Statement inStmtB = cInDb3.createStatement();
+            Statement outStmtA = cOutput.createStatement();
+            Statement outStmtB = cOutput.createStatement();
+            
+            createTables(outStmtA, cOutput, scenarioName);
+            
+            String tblA = "yield_";
+            if(scenarioType) {
+                tblA += "historic";
+            }
+            else {
+                tblA += "conventional";
+            }
+            
+            buildCropEconFields(inStmtA, outStmtA, tblA, "crop_economic_fields", cOutput);
+            
+            buildCropEconFarms(inStmtA, inStmtB, outStmtA, tblA, "field_farm", "crop_economic_farms", cOutput);
+                       
+            buildCropEconSubbasins(inStmtA, inStmtB, outStmtA, tblA, "field_subbasin", "crop_economic_subbasins", cOutput);
+            
+            ValueTypePair[][] src;
+            src = loadDbfTableData(new Table(new File(dbf_tbls[0].getAbsolutePath())), new String[]{"ID", "Embankment", "LifeTime"}, dams, saving);
+            buildDbfTables(src, outStmtA, cOutput, "small_dams", saving);
+            buildDbfTables(loadSmallDamEconCosts(src), outStmtA, cOutput, "small_dams_economic", saving);
+            
+            src = loadDbfTableData(new Table(new File(dbf_tbls[1].getAbsolutePath())), new String[]{"ID", "HRU",
+                "Cattles", "ClayLiner", "PlasticLn", "WireFence", "Distance", "Trenching", "Pond_Yrs"}, ponds, saving);
+            src = loadPondCosts(src);
+            buildDbfTables(src, outStmtA, cOutput, "holding_ponds", saving);
+            buildDbfTables(loadPondEcon(src), outStmtA, cOutput, "holding_ponds_economic", saving);
+            
+            src = loadDbfTableData(new Table(new File(dbf_tbls[2].getAbsolutePath())), new String[]{"ID", "Grazing_Ha", "UnitCost"}, grazing, saving);
+            src = loadGrazing(src, saving);
+            buildDbfTables(src, outStmtA, cOutput, "grazing", saving);
+            
+            buildDbfTables(loadGrazingEcon(src), outStmtA, cOutput, "grazing_economic", saving);
+            
+            src = loadGrazingSubbasinData(src, inStmtA, inStmtB, "subbasin_grazing", "grazing_area");
+            buildDbfTables(src, outStmtA, cOutput, "grazing_economic_subbasins", saving);
+            
+            src = loadGrazingHruData(src, inStmtA, outStmtA, null, "subbasin_grazing_hru", "grazing_economic_subbasins", saving);
+            buildDbfTables(src, outStmtA, cOutput, "grazing_hrus", saving);
+            
+            buildTillageForage(inStmtA, outStmtA, outStmtB, tblA, "tillage", "tillage_hrus", tillageType, tillage, scenarioType, cOutput);
+            
+            buildTillageForage(inStmtA, outStmtA, outStmtB, tblA, "forage", "forage_hrus", tillageType, forage, scenarioType, cOutput);
+        } catch(SQLException | IllegalArgumentException | IOException e) {
+            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            cOutput.close();
+            cInDb3.close();
+        }
+    }
+    
+    public void saveScenario(int[] dams, int[] ponds, int[] grazing, int[] tillage, int[] forage) throws SQLException {
+        saving = true;
+        Connection cInDb3 = DriverManager.getConnection(inputConnection);
+        cInDb3.setAutoCommit(false);
+        //progress = WEBsInterface.calculateProgressBaseScenario("\nOpened spatial.db3 database successfully", scenarioType, progress);
+
+        Connection cOutput = DriverManager.getConnection(outputConnection);
+        cOutput.setAutoCommit(false);
+        //progress = WEBsInterface.calculateProgressBaseScenario("\nConnection established to " + inDb + " database successfully", scenarioType, progress);
+        try {
+            displayBMPArrayData(dams, ponds, grazing, tillage, forage);
+            
+            Statement inStmtA = cInDb3.createStatement();
+            Statement outStmtA = cOutput.createStatement();
+            Statement outStmtB = cOutput.createStatement();
+            
+            String tblA = "yield_";
+            if(scenarioType) {
+                tblA += "historic";
+            }
+            else {
+                tblA += "conventional";
+            }
+            
+            ValueTypePair[][] src;
+            src = loadDbfTableData(new Table(new File(dbf_tbls[0].getAbsolutePath())), new String[]{"ID", "Embankment", "LifeTime"}, dams, saving);
+            buildDbfTables(src, outStmtA, cOutput, "small_dams", saving);
+            
+            src = loadDbfTableData(new Table(new File(dbf_tbls[1].getAbsolutePath())), new String[]{"ID", "HRU",
+                "Cattles", "ClayLiner", "PlasticLn", "WireFence", "Distance", "Trenching", "Pond_Yrs"}, ponds, saving);
+            buildDbfTables(src, outStmtA, cOutput, "holding_ponds", saving);
+            
+            src = loadDbfTableData(new Table(new File(dbf_tbls[2].getAbsolutePath())), new String[]{"ID", "Grazing_Ha", "UnitCost"}, grazing, saving);
+            src = loadGrazing(src, saving);
+            buildDbfTables(src, outStmtA, cOutput, "grazing", saving);
+            
+            src = loadGrazingHruData(src, inStmtA, outStmtA, "subbasin_grazing", "subbasin_grazing_hru", "grazing_economic_subbasins", saving);
+            
+            buildDbfTables(src, outStmtA, cOutput, "grazing_hrus", saving);
+            
+            if(hasTillage) {
+                buildTillageForage(inStmtA, outStmtA, outStmtB, tblA, "tillage", "tillage_hrus", tillageType, tillage, scenarioType, cOutput);
+            
+                buildTillageForage(inStmtA, outStmtA, outStmtB, tblA, "forage", "forage_hrus", tillageType, forage, scenarioType, cOutput);
+            }
+        } catch (SQLException | IOException e) {
+            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            cOutput.close();
+            cInDb3.close();
+        }
+        saving = false;
     }
     
     /**
@@ -112,7 +294,7 @@ public class ScenarioBuilder {
      */
     
     private void createTables(Statement out, Connection c, String scen) {
-        final String[] tbl_names = {"crop_economic_fields", "crop_economic_farms", "crop_economic_subbasins", "forage", "forage_hru",
+        final String[] tbl_names = {"crop_economic_fields", "crop_economic_farms", "crop_economic_subbasins", "forage", "forage_hrus",
                                     "tillage", "grazing_hrus", "grazing_economic", "grazing_economic_subbasins", "small_dams_economic",
                                     "holding_ponds_economic", "grazing", "holding_ponds", "small_dams", "tillage_hrus"};
         final String[] val_names = {"id", "year", "yield", "revenue", "cost", "net_return", "grazing_ha", "unit_cost", "hru",
@@ -199,26 +381,27 @@ public class ScenarioBuilder {
     private void buildHistoricScenario(Statement inA, Statement inB, Statement out, Connection c) {
         try {
             ValueTypePair[][] src;
-            src = loadDbfTableData(new Table(new File(dbf_tbls[0].getAbsolutePath())), "Existing", new String[]{"ID", "Embankment", "LifeTime"});
-            buildDbfTables(src, out, c, "small_dams");
-            buildDbfTables(loadSmallDamEconCosts(src), out, c, "small_dams_economic");
+            src = loadDbfTableData(new Table(new File(dbf_tbls[0].getAbsolutePath())), new String[]{"ID", "Embankment", "LifeTime"}, null, saving);
+            buildDbfTables(src, out, c, "small_dams", saving);
+            buildDbfTables(loadSmallDamEconCosts(src), out, c, "small_dams_economic", saving);
             
-            src = loadDbfTableData(new Table(new File(dbf_tbls[1].getAbsolutePath())), "Existing", new String[]{"ID", "HRU",
-                "Cattles", "ClayLiner", "PlasticLn", "WireFence", "Distance", "Trenching", "Pond_Yrs"});
+            src = loadDbfTableData(new Table(new File(dbf_tbls[1].getAbsolutePath())), new String[]{"ID", "HRU",
+                "Cattles", "ClayLiner", "PlasticLn", "WireFence", "Distance", "Trenching", "Pond_Yrs"}, null, saving);
             src = loadPondCosts(src);
-            buildDbfTables(src, out, c, "holding_ponds");
-            buildDbfTables(loadPondEcon(src), out, c, "holding_ponds_economic");
+            buildDbfTables(src, out, c, "holding_ponds", saving);
+            buildDbfTables(loadPondEcon(src), out, c, "holding_ponds_economic", saving);
             
-            src = loadDbfTableData(new Table(new File(dbf_tbls[2].getAbsolutePath())), "Existing", new String[]{"ID", "Grazing_Ha", "UnitCost"});
-            src = loadGrazing(src);
-            buildDbfTables(src, out, c, "grazing");
-            buildDbfTables(loadGrazingEcon(src), out, c, "grazing_economic");
+            src = loadDbfTableData(new Table(new File(dbf_tbls[2].getAbsolutePath())), new String[]{"ID", "Grazing_Ha", "UnitCost"}, null, saving);
+            src = loadGrazing(src, saving);
+            buildDbfTables(src, out, c, "grazing", saving);
+            
+            buildDbfTables(loadGrazingEcon(src), out, c, "grazing_economic", saving);
             
             src = loadGrazingSubbasinData(src, inA, inB, "subbasin_grazing", "grazing_area");
-            buildDbfTables(src, out, c, "grazing_economic_subbasins");
+            buildDbfTables(src, out, c, "grazing_economic_subbasins", saving);
             
-            src = loadGrazingHruData(src, inA, out, "subbasin_grazing_hru", "grazing_economic_subbasins");
-            buildDbfTables(src, out, c, "grazing_hrus");
+            src = loadGrazingHruData(src, inA, out, null, "subbasin_grazing_hru", "grazing_economic_subbasins", saving);
+            buildDbfTables(src, out, c, "grazing_hrus", saving);
         } catch (IOException e) {
             Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
         }
@@ -241,6 +424,7 @@ public class ScenarioBuilder {
     
     private void buildCropEconFields(Statement in, Statement out, String inTbl, String outTbl, Connection c) {
         try {
+            out.execute("DELETE FROM " + outTbl + ";");
             ResultSet inRs = in.executeQuery("SELECT * FROM " + inTbl + ";");
             ResultSet outRs = out.executeQuery("SELECT * FROM " + outTbl + ";");
             NameTypePair[] ntp = loadInputNamesAndTypes(inRs);
@@ -275,6 +459,7 @@ public class ScenarioBuilder {
     
     private void buildCropEconFarms(Statement inFld, Statement inBmp, Statement out, String inTblA, String inTblB, String outTbl, Connection c){
         try {
+            out.execute("DELETE FROM " + outTbl + ";");
             ResultSet inRsFld = inFld.executeQuery("SELECT * FROM " + inTblA + ";");
             ResultSet inRsFrm = inBmp.executeQuery("SELECT * FROM " + inTblB + " WHERE farm > 0 ORDER BY farm;");
             ResultSet outRs = out.executeQuery("SELECT * FROM " + outTbl + ";");
@@ -302,6 +487,7 @@ public class ScenarioBuilder {
     
     private void buildCropEconSubbasins(Statement inFld, Statement inBmp, Statement out, String inTblA, String inTblB, String outTbl, Connection c) {
         try {
+            out.execute("DELETE FROM " + outTbl + ";");
             ResultSet inRsFld = inFld.executeQuery("SELECT * FROM " + inTblA + ";");
             ResultSet inRsBsn = inBmp.executeQuery("SELECT * FROM " + inTblB + " WHERE subbasin > 0 ORDER BY subbasin;");
             ResultSet outRs = out.executeQuery("SELECT * FROM " + outTbl + ";");
@@ -316,21 +502,6 @@ public class ScenarioBuilder {
         }
     }
     
-    private void buildTillage(Statement in, Statement out, String inTbl, String outTbl, Connection c) {
-        try {
-            ResultSet inRs = in.executeQuery("SELECT * FROM " + inTbl + ";");
-            ResultSet outRs = out.executeQuery("SELECT * FROM " + outTbl + ";");
-            NameTypePair[] ntp = loadInputNamesAndTypes(inRs);
-            String outColumnNames = loadOutputColumnNames(inRs);
-            String sql = "INSERT INTO " + outTbl + "(" + outColumnNames + "VALUES(";
-            while (inRs.next()) {
-                //out.executeUpdate(writeTillageOutputQuery(inRs, ntp, sql, 0));
-            }
-        } catch (SQLException e) {
-            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
-        }
-    }
-    
     /**
      * 
      * @param src: ValueTypePair Array containing the table data values.
@@ -339,16 +510,88 @@ public class ScenarioBuilder {
      * @param tbl: String containing the name of the Output SQL Table.
      */
     
-    private void buildDbfTables(ValueTypePair[][] src, Statement out, Connection c, String tbl) {
+    private void buildDbfTables(ValueTypePair[][] src, Statement out, Connection c, String tbl, boolean saving) {
         try {
+            out.execute("DELETE FROM " + tbl + ";");
             for(ValueTypePair[] s: src) {
-                String sql = "INSERT INTO " + tbl + "(" + loadOutputColumnNames(out.executeQuery("SELECT * FROM " + tbl + ";")) + " VALUES(";
+                String sql = "INSERT INTO " + tbl + "(";
+                if(saving) {
+                    sql += "ID) VALUES(";
+                }
+                else {
+                    sql += loadOutputColumnNames(out.executeQuery("SELECT * FROM " + tbl + ";")) + " VALUES(";
+                }
                 out.executeUpdate(writeDbfOutputQueries(s, sql));
             }
             c.commit();
-            //progress = WEBsInterface.calculateProgressBaseScenario("\n" + tbl + " database created successfully", scenarioType, progress);
         } catch (SQLException e) {
             Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+        }
+    }
+    
+    /**
+     * 
+     * @param in: Input Statement Call.
+     * @param outA: Output Statement Call to the Tillage/Forage Table.
+     * @param outB: Output Statement Call to the Tillage/Forage HRU Tables.
+     * @param inTbl: Name of the Input Table called yield_historic from the SQLite3 DB.
+     * @param outTbl: Name of the Tillage/Forage Table. Specified separately due to the
+     *                necessity to use the Tillage/Forage IDs as input for the HRU tables.
+     * @param outTblHru: Name of the Tillage/Forage HRU Table.
+     * @param type: Use to identify whether the Field, Farm, or Subbasin calculation is needed.
+     * @param data: An integer array containing the specified fields that have been selected
+     *              by the user for use in building the scenario.
+     * @param isConv: Used for the Tillage functions to determine if the Tillage Type is Conventional
+     *                or Zero.
+     * @param c: Connection to the Output SQL Database
+     */
+    
+    private void buildTillageForage(Statement in, Statement outA, Statement outB, String inTbl, String outTbl, String outTblHru, int type, int[] data, boolean isConv, Connection c) {
+        if(data != null) {
+            try {
+                outA.execute("DELETE FROM " + outTbl + ";");
+                outB.execute("DELETE FROM " + outTblHru + ";");
+                ResultSet inRs = in.executeQuery("SELECT * FROM " + inTbl + ";");
+                ResultSet outRs = outA.executeQuery("SELECT * FROM " + outTbl + ";");
+                String outColumnNames = loadOutputColumnNames(outRs);
+                int[] ids = loadTillageForageIds(inRs, data);
+                String sql = "INSERT INTO " + outTbl + "(" + outColumnNames + "VALUES(";
+                for(int i = 0; i < ids.length; i++) {
+                    outA.executeUpdate(sql + ids[i] + ");");
+                }
+                c.commit();
+                inRs = outA.executeQuery("SELECT * FROM " + outTbl + ";");
+                outRs = outB.executeQuery("SELECT * FROM " + outTblHru + ";");
+                outColumnNames = loadOutputColumnNames(outRs);
+                sql = "INSERT INTO " + outTblHru + "(" + outColumnNames + "VALUES(";
+                int[] hrus;
+                int tillageZeroOrConv = 4;
+                if(outTbl.equals("tillage")) {
+                    if(isConv) {
+                        tillageZeroOrConv = 56;
+                    }
+                }
+                if(type == 2) {
+                    hrus = loadTillageForageHrus(in, "hru_subbasin", type, ids);
+                }
+                else if(type == 1) {
+                    hrus = loadTillageForageHrus(in, "hru_field", type, ids);
+                }
+                else {
+                    hrus = loadTillageForageHrus(in, "hru_field", type, ids);
+                }
+                for(int i = 0; i < hrus.length; i++) {
+                    if(outTbl.equals("tillage")) {
+                        outB.executeUpdate(sql + hrus[i] + ", " + tillageZeroOrConv + ");");
+                    }
+                    else {
+                        outB.executeUpdate(sql + hrus[i] + ");");
+                    }
+                }
+                c.commit();
+            } catch (SQLException e) {
+                Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+            }
         }
     }
     
@@ -432,25 +675,53 @@ public class ScenarioBuilder {
      * @throws IOException: File I/O Error when verifying existence of a DBF table.
      */
     
-    private ValueTypePair[][] loadDbfTableData(Table tbl, String existing, String[] columns) throws IOException {
+    private ValueTypePair[][] loadDbfTableData(Table tbl, String[] columns, int[] data, boolean saving) throws IOException {
         ValueTypePair[][] vals = null, temp = null;
         int entries = 0;
         try {
             tbl.open(IfNonExistent.ERROR);
-            temp = new ValueTypePair[tbl.getRecordCount()][columns.length];
-            //progress = WEBsInterface.calculateProgressBaseScenario("\nOpened " + tbl.getName() + " database successfully", scenarioType, progress);
+            if(saving) {
+                temp = new ValueTypePair[tbl.getRecordCount()][1];
+            }
+            else {
+                temp = new ValueTypePair[tbl.getRecordCount()][columns.length];
+            }
             Iterator<Record> iter = tbl.recordIterator();
-            for(int i = 0; i < tbl.getRecordCount(); i++) {
-                Record rec = iter.next();
-                Number exists = rec.getNumberValue(existing);
-                if(exists.intValue() == 1) {
-                    for(int j = 0; j < columns.length; j++) {
-                        Number n = rec.getNumberValue(columns[j]);
-                        if(n.doubleValue() % 1 > 0 || columns[j].equalsIgnoreCase("embankment") || columns[j].equalsIgnoreCase("distance")) {
-                            temp[entries][j] = new ValueTypePair(n.doubleValue(), 0);
+            
+            if(data == null) {
+                for(int i = 0; i < tbl.getRecordCount(); i++) {
+                    Record rec = iter.next();
+                    Number exists = rec.getNumberValue("Existing");
+                    if(exists.intValue() == 1) {
+                        for(int j = 0; j < columns.length; j++) {
+                            Number n = rec.getNumberValue(columns[j]);
+                            if(n.doubleValue() % 1 > 0 || columns[j].equalsIgnoreCase("embankment") || columns[j].equalsIgnoreCase("distance")) {
+                                temp[entries][j] = new ValueTypePair(n.doubleValue(), 0);
+                            }
+                            else {
+                                temp[entries][j] = new ValueTypePair((double) n.intValue(), 1);
+                            }
                         }
-                        else {
-                            temp[entries][j] = new ValueTypePair((double) n.intValue(), 1);
+                        entries++;
+                    }
+                }
+            }
+            else {
+                for(int i = 0; i < data.length; i++) {
+                    Record rec = iter.next();
+                    if(saving) {
+                        Number n = rec.getNumberValue(columns[0]);
+                        temp[entries][0] = new ValueTypePair((double) n.intValue(), 1);
+                    }
+                    else {
+                        for(int j = 0; j < columns.length; j++) {
+                            Number n = rec.getNumberValue(columns[j]);
+                            if(n.doubleValue() % 1 > 0 || columns[j].equalsIgnoreCase("embankment") || columns[j].equalsIgnoreCase("distance")) {
+                                temp[entries][j] = new ValueTypePair(n.doubleValue(), 0);
+                            }
+                            else {
+                                temp[entries][j] = new ValueTypePair((double) n.intValue(), 1);
+                            }
                         }
                     }
                     entries++;
@@ -561,13 +832,24 @@ public class ScenarioBuilder {
      *               grazing areas, as UnitCost * Grazing_Ha.
      */
     
-    private ValueTypePair[][] loadGrazing(ValueTypePair[][] vtp) {
-        ValueTypePair[][] vals = new ValueTypePair[vtp.length][4];
+    private static ValueTypePair[][] loadGrazing(ValueTypePair[][] vtp, boolean saving) {
+        ValueTypePair[][] vals;
+        int size;
+        if(saving) {
+            vals = new ValueTypePair[vtp.length][1];
+            size = 1;
+        }
+        else {
+            vals = new ValueTypePair[vtp.length][4];
+            size = 3;
+        }
         for(int i = 0; i < vtp.length; i++) {
-            for(int j = 0; j < 3; j++) {
+            for(int j = 0; j < size; j++) {
                 vals[i][j] = new ValueTypePair(vtp[i][j].getPairValueAsDouble(), vtp[i][j].getPairType());
             }
-            vals[i][3] = new ValueTypePair(vals[i][1].getPairValueAsDouble() * vals[i][2].getPairValueAsDouble(), 0);
+            if(!saving) {
+                vals[i][3] = new ValueTypePair(vals[i][1].getPairValueAsDouble() * vals[i][2].getPairValueAsDouble(), 0);
+            }
         }
         return vals;
     }
@@ -604,8 +886,8 @@ public class ScenarioBuilder {
                         subs.add(subId);
                         sRs = inA.executeQuery("SELECT * FROM " + subGrz + " WHERE subbasin = " + subId + ";");
                         int k = 0; 
-                        IdValuePair[] iTempArea = new IdValuePair[vtp.length];
-                        IdValuePair[] iTempPct = new IdValuePair[vtp.length];
+                        IdValuePair[] iTempArea = new IdValuePair[vTemp.length];
+                        IdValuePair[] iTempPct = new IdValuePair[vTemp.length];
                         while(sRs.next()) {
                             grzId = sRs.getInt(2);
                             //if(ids.contains(grzId)) {
@@ -651,33 +933,230 @@ public class ScenarioBuilder {
      * @param vtp: ValueTypePair Array containing the Grazing Economic data and type values.
      * @param in: Input Statement used in calling the table in hruGrz.
      * @param out: Output Statement used in calling the table in subGrz.
+     * @param subGrz: subbasin_grazing table name from Spatial.db3 as a String.
+     *                Used to convert IDs when saving table.
      * @param hruGrz: subbasin_grazing_hru table name from Spatial.db3 as a String.
-     * @param subGrz: grazing_economic_subbasins table name from Output Database as a String.
+     * @param grzTbl: grazing table name from Output Database as a String.
      * @return vals: ValueTypePair Array containing the HRU indexes for the SWAT
      *               model for each grazing subbasin. The Array remains 2D for
      *               consistent use with the buildDbfTables method.
      */
     
-    private ValueTypePair[][] loadGrazingHruData(ValueTypePair[][] vtp, Statement in, Statement out, String hruGrz, String subGrz) {
+    private ValueTypePair[][] loadGrazingHruData(ValueTypePair[][] vtp, Statement inA, Statement out, String subGrz, String hruGrz, String grzTbl, boolean saving) {
         ValueTypePair[][] temp = new ValueTypePair[vtp.length][1];
+        HashSet idSet = new HashSet();
         int length = 0;
+        for(ValueTypePair[] v : vtp) {
+            idSet.add(v[0].getPairValueAsInt());
+        }
         try {
-            ResultSet sRs = out.executeQuery("SELECT DISTINCT id FROM " + subGrz + ";");
-            int index = 0;
-            while(sRs.next()) {
-                ResultSet hRs = in.executeQuery("SELECT * FROM " + hruGrz + " WHERE subbasin = " + sRs.getInt(1) + ";");
-                while(hRs.next()) {
-                    temp[index][0] = new ValueTypePair(hRs.getInt(2), 1);
-                    index++;
+            if(saving) {
+                ResultSet idRs = out.executeQuery("SELECT DISTINCT ID FROM " + grzTbl + ";");
+                HashSet subSet = new HashSet();
+                int index = 0, multiples = 0;
+                while(idRs.next()) {
+                    ResultSet subRs = inA.executeQuery("SELECT * FROM " + subGrz + " WHERE grazing = " + idRs.getInt("id") + " ORDER BY grazing");
+                    while(subRs.next()) {
+                        int subId = subRs.getInt(1);
+                        int grzId = subRs.getInt(2);
+                        if(idSet.contains(grzId)) {
+                            if(subSet.contains(subId)) {
+                            }
+                            else if(multiples == grzId) {
+                                subSet.add(subId);
+                                temp[index][0] = new ValueTypePair(subId, 1);
+                                index++;
+                            }
+                            else {
+                                subSet.add(subId);
+                                multiples = grzId;
+                                temp[index][0] = new ValueTypePair(subId, 1);
+                                index++;
+                            }
+                        }
+                    }
                 }
+                length = index;
+                index = 0;
+                ValueTypePair[][] convert = new ValueTypePair[length][1];
+                System.arraycopy(temp, 0, convert, 0, length);
+                ValueTypePair[][] temp2 = new ValueTypePair[vtp.length][1];
+                for(ValueTypePair[] c : convert) {
+                    ResultSet hRs = inA.executeQuery("SELECT * FROM " + hruGrz + " WHERE subbasin = " + c[0].getPairValueAsInt() + ";");
+                    while(hRs.next()) {
+                        temp2[index][0] = new ValueTypePair(hRs.getInt("HRUSWATIndex"), 1);
+                        index++;
+                    }
+                }
+                System.arraycopy(temp2, 0, temp, 0, vtp.length);
+                length = index;
             }
-            length = index;
+            else {
+                ResultSet sRs = out.executeQuery("SELECT DISTINCT ID FROM " + grzTbl + ";");
+                int index = 0;
+                while(sRs.next()) {
+                    ResultSet hRs = inA.executeQuery("SELECT * FROM " + hruGrz + " WHERE subbasin = " + sRs.getInt("id") + ";");
+                    while(hRs.next()) {
+                        temp[index][0] = new ValueTypePair(hRs.getInt("HRUSWATIndex"), 1);
+                        index++;
+                    }
+                }
+                length = index;
+            }
         } catch (SQLException e) {
             Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
         }
         ValueTypePair[][] vals = new ValueTypePair[length][1];
         System.arraycopy(temp, 0, vals, 0, length);
         return vals;
+    }
+    
+    /**
+     * 
+     * @param inRs Input ResultSet containing the query result from the source
+     *             table.
+     * @param data Integer array containing data?
+     * @return idArray: Integer array containing the field IDs needed for the
+     *                  appropriate table.
+     */
+    
+    private int[] loadTillageForageIds(ResultSet inRs, int[] data) {
+        int[] idArray = null;
+        HashSet tempSet = new HashSet(), idSet = new HashSet();
+        for(int i = 0; i < data.length; i++) {
+            tempSet.add(data[i]);
+        }
+        try { 
+            int k = 0;
+            int[] tempArray = new int[data.length];
+            while(inRs.next()) {
+                int field = inRs.getInt("field");
+                if(tempSet.contains(field)) {
+                    if(idSet.contains(field)) {
+                    }
+                    else {
+                        idSet.add(field);
+                        tempArray[k] = field;
+                        k++;
+                    }
+                }
+            }
+            idArray = new int[k];
+            System.arraycopy(tempArray, 0, idArray, 0, k);
+        } catch(SQLException e) {
+            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+        }
+        return idArray;
+    }
+    
+    /**
+     * 
+     * @param inHist
+     * @param tbl
+     * @param type
+     * @param data
+     * @return 
+     */
+    
+    private int[] loadTillageForageHrus(Statement inHist, String tbl, int type, int[] data) {
+        ResultSet rs = null;
+        HashSet idSet = new HashSet();
+        int[] ids = null;
+        for(int i = 0; i < data.length; i++) {
+            idSet.add(data[i]);
+        }
+        try {
+            int[] temp = new int[data.length * 20];
+            int multiples = 0, index = 0;
+            if(type == 1) {
+                rs = inHist.executeQuery("SELECT * FROM field_farm ORDER BY FARM");
+                while(rs.next()) {
+                    HashSet farmSet = idSet;
+                    int frm = rs.getInt("farm");
+                    int fld = rs.getInt("field");
+                    if(farmSet.contains(frm)) {
+                        if(multiples == frm) {
+                            temp[index] = fld;
+                            index++;
+                        }
+                        else {
+                            if(multiples > 0) {
+                                farmSet.remove(multiples);
+                            }
+                            multiples = frm;
+                            temp[index] = fld;
+                            index++;
+                        }
+                    }
+                }
+                rs = inHist.executeQuery("SELECT * FROM " + tbl + " ORDER BY FIELD;");
+                while(rs.next()) {
+                    int fld = rs.getInt("field");
+                    int hru = rs.getInt("HRUSWATIndex");
+                    if(idSet.contains(fld)) {
+                        if(multiples == fld) {
+                            temp[index] = hru;
+                            index++;
+                        }
+                        else {
+                            if(multiples > 0) {
+                                idSet.remove(multiples);
+                            }
+                            multiples = fld;
+                            temp[index] = hru;
+                            index++;
+                        }
+                    }
+                }
+            }
+            else if(type == 2){
+                rs = inHist.executeQuery("SELECT * FROM " + tbl + " ORDER BY SUBBASIN;");
+                while(rs.next()) {
+                    int sub = rs.getInt("subbasin");
+                    int hru = rs.getInt("HRUSWATIndex");
+                    if(idSet.contains(sub)) {
+                        if(multiples == sub) {
+                            temp[index] = hru;
+                            index++;
+                        }
+                        else {
+                            if(multiples > 0) {
+                                idSet.remove(multiples);
+                            }
+                            multiples = sub;
+                            temp[index] = hru;
+                            index++;
+                        }
+                    }
+                }
+            }
+            else {
+                rs = inHist.executeQuery("SELECT * FROM " + tbl + " ORDER BY FIELD;");
+                while(rs.next()) {
+                    int fld = rs.getInt("field");
+                    int hru = rs.getInt("HRUSWATIndex");
+                    if(idSet.contains(fld)) {
+                        if(multiples == fld) {
+                            temp[index] = hru;
+                            index++;
+                        }
+                        else {
+                            if(multiples > 0) {
+                                idSet.remove(multiples);
+                            }
+                            multiples = fld;
+                            temp[index] = hru;
+                            index++;
+                        }
+                    }
+                }
+            }
+            ids = new int[index];
+            System.arraycopy(temp, 0, ids, 0, index);
+        } catch(SQLException e) {
+            Logger.getLogger(ScenarioBuilder.class.getName()).log(Level.SEVERE, null, e);
+        }
+        return ids;
     }
     
     /**
@@ -948,5 +1427,4 @@ public class ScenarioBuilder {
         }
         return "";
     }
-    
 }

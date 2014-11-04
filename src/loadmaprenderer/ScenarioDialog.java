@@ -1,6 +1,7 @@
 package loadmaprenderer;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -8,6 +9,10 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
@@ -41,15 +46,21 @@ public class ScenarioDialog {
     private final JButton cancel;
     
     private final Font f = new Font("Sans_Serif", Font.BOLD, 12);
-    private final ImageIcon websIcon = new ImageIcon("build\\classes\\loadmaprenderer\\resources\\Images\\icon_32x32.png");
+    private final ImageIcon websIcon;
+    private boolean scenarioType;
+    private final String spatialDir;
+    private final String projectDir;
     
-    public ScenarioDialog() {    
+    public ScenarioDialog(String graphicsDirectory, String spatialDirectory, String wbProjectDirectory) {    
         frame = new JFrame("Create a New Scenario");
         frame.setLayout(new GridBagLayout());
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(false);
+        websIcon = new ImageIcon(graphicsDirectory + "icon_32x32.png");
         frame.setIconImage(websIcon.getImage());
         frame.setLocation(frame.getWidth() / 4, frame.getHeight());
+        spatialDir = spatialDirectory;
+        projectDir = wbProjectDirectory;
         
         nameLbl = createLabel(new JLabel("Scenario Name", SwingConstants.RIGHT));
         GridBagConstraints gbc = setGbc(new Insets(4, 36, 4, 4), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 0.0, 1.0);
@@ -75,6 +86,9 @@ public class ScenarioDialog {
         ButtonGroup group = new ButtonGroup();
         group.add(rbHist);
         group.add(rbConv);
+        
+        rbHist.addActionListener(new histListener());
+        rbHist.addActionListener(new convListener());
         
         gbc = setGbc(new Insets(8, 8, 8, 4), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 0.0, 1.0);
         panel.add(rbHist, gbc);
@@ -176,11 +190,30 @@ public class ScenarioDialog {
         g.weighty = weighY;
         return g;
     }
+
+    private class histListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            scenarioType = true;
+        }
+    }
+
+    private class convListener implements ActionListener{
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            scenarioType = false;
+        }
+    }
     
     private class confirmListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            frame.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            frame.getGlassPane().setVisible(true);
+            WhiteboxGuiClone.wb.newScenario(nameFld.getText(), false, scenarioType, spatialDir, projectDir);
+            frame.getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+            frame.getGlassPane().setVisible(true);
+            frame.dispose();
         }
     }
     

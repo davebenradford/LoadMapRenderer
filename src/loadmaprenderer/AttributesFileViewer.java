@@ -224,10 +224,6 @@ public class AttributesFileViewer extends JPanel implements ActionListener, Prop
 //            }
 //        });
     }
-    
-    //public JPanel getTableView() {
-    //    return this;
-    //}
 
     private void createGui() {
         try {
@@ -677,7 +673,7 @@ public class AttributesFileViewer extends JPanel implements ActionListener, Prop
         return button;
     }
 
-    private JTable getDataTable() {
+    public JTable getDataTable() {
 
         final AttributeFileTableModel model = new AttributeFileTableModel(attributeTable);
         final JTable table = new JTable(model) {
@@ -1291,7 +1287,7 @@ public class AttributesFileViewer extends JPanel implements ActionListener, Prop
                 }
             }
             editor.setText(str);
-        } catch (Exception e) {
+        } catch (IOException e) {
             host.logException("Error in AttributesFileViewer", e);
         }
 
