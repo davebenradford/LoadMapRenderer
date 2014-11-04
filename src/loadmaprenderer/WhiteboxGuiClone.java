@@ -8423,7 +8423,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 }
                 tableView.removeAll();
                 showAttributesFile();
-                mapRefreshThing(currentShapeFile);
+                mapRefreshThing(currentShapeFile, new HashMap());
                 splitPane3.setResizeWeight(0.65);
                 splitPane3.repaint();
                 wb.repaint();

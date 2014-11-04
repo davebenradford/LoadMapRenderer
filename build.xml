@@ -70,4 +70,10 @@
     nbproject/build-impl.xml file. 
 
     -->
+	<copy todir="${dist.dir}${file.separator}resources" >  
+		<fileset dir="res" includes="**/*"/>  
+	</copy>
+	<copy todir="${build.dir}${file.separator}classes${file.separator}whiteboxgis${file.separator}resources" >  
+		<fileset dir="res" includes="**/*"/>  
+	</copy>
 </project>
