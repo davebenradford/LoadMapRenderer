@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE log SYSTEM "logger.dtd">
+<log>
+<record>
+  <date>2014-09-24T17:44:07</date>
+  <millis>1411595047243</millis>
+  <sequence>0</sequence>
+  <logger>loadmaprenderer</logger>
+  <level>WARNING</level>
+  <class>loadmaprenderer.WhiteboxGuiClone</class>
+  <method>findTutorialFiles</method>
+  <thread>1</thread>
+  <message>Help.findAvailableHelpFiles</message>
+  <exception>
+    <message>java.lang.NullPointerException</message>
+    <frame>
+      <class>whitebox.utilities.FileUtilities</class>
+      <method>findAllFilesWithExtension2</method>
+      <line>75</line>
+    </frame>
+    <frame>
+      <class>whitebox.utilities.FileUtilities</class>
+      <method>findAllFilesWithExtension</method>
+      <line>62</line>
+    </frame>
+    <frame>
+      <class>loadmaprenderer.WhiteboxGuiClone</class>
+      <method>findTutorialFiles</method>
+      <line>3535</line>
+    </frame>
+    <frame>
+      <class>loadmaprenderer.WhiteboxGuiClone</class>
+      <method>createMenu</method>
+      <line>3455</line>
+    </frame>
+    <frame>
+      <class>loadmaprenderer.WhiteboxGuiClone</class>
+      <method>createGui</method>
+      <line>2731</line>
+    </frame>
+    <frame>
+      <class>loadmaprenderer.WhiteboxGuiClone</class>
+      <method>&lt;init&gt;</method>
+      <line>464</line>
+    </frame>
+    <frame>
+      <class>loadmaprenderer.WhiteboxGuiClone</class>
+      <method>main</method>
+      <line>299</line>
+    </frame>
+  </exception>
+</record>

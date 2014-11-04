@@ -1,0 +1,2 @@
+whiteboxgis.AngledLinesWindowsCornerIcon
+whiteboxgis.StatusBar
