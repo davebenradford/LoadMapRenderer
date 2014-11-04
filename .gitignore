@@ -43,4 +43,8 @@ res/Projects/
 /bckuplog/
 
 # Compiler files
+<<<<<<< HEAD
 *.class
+=======
+*.class
+>>>>>>> 9ef9a0d127d0012b8c90263323ffcb1473128111
