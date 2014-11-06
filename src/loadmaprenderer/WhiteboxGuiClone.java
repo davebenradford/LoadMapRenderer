@@ -2920,7 +2920,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
         vli.setOverlayNumber(v);
     }
     
-    private void displayBMPArrayData() {
+    /*private void displayBMPArrayData() {
         System.out.println("\n***** TEST PRINTING OF BMP DATA ARRAYS *****\n");
         System.out.println("*** SMALL DAM BMP ARRAY DATA ***\n");
         if(damData != null) {
@@ -2952,7 +2952,7 @@ public class WhiteboxGuiClone extends JFrame implements ThreadListener, ActionLi
                 System.out.println(forageData[i] + ": FORAGE DATA AT INDEX " + i);
             }
         }
-    }
+    }*/
     
     public void newScenario(String name, boolean base, boolean scenarioType, String spatialDir, String projectDir) {
         try {
