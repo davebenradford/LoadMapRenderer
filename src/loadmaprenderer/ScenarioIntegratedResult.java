@@ -137,12 +137,12 @@ public class ScenarioIntegratedResult extends ScenarioResult{
             ResultDisplayTillageForageEconomicResultType economicColumnType, 
             int id, int startYear, int endYear, Scenario compareScenario) throws Exception{
         double swat = GetSWATResult().GetAverageResult(project, type, swatColumnType.toString(), id, startYear, endYear, compareScenario, false);
-        if (type == BMPType.Small_Dam || type == BMPType.Holding_Pond || type == BMPType.Grazing)
+        if (type == BMPType.Small_Dams || type == BMPType.Holding_Ponds || type == BMPType.Grazing)
             economicColumnType = ResultDisplayTillageForageEconomicResultType.Cost;
         double economic = GetEconomicResult().GetAverageResult(project, type, economicColumnType.toString(), id, startYear, endYear, compareScenario, false);
 
         return getIntegratedResult(swat, economic,
-            type != BMPType.Small_Dam && type != BMPType.Holding_Pond && swatColumnType == SWATResultColumnType.water);
+            type != BMPType.Small_Dams && type != BMPType.Holding_Ponds && swatColumnType == SWATResultColumnType.water);
     }
 
     public double GetAverageResult_Integrated(
@@ -166,7 +166,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
             economicResultColumn, id, startYear, endYear, null, false);
 
         //double swat_compare = compareScenario.Result.SWATResult.GetAverageResult(project, bmpType, swatColumnType.ToString(), id, startYear, endYear);
-        double bmpCost_compare = compareScenario.GetResult().GetAverageResult(project, bmpType,
+        double bmpCost_compare = compareScenario.getResult().GetAverageResult(project, bmpType,
             economicResultColumn, id, startYear, endYear, null, false);
 
         double swat_reduction = //swat_compare - swat;
@@ -174,7 +174,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         double bmpCost_different = bmpCost - bmpCost_compare;
 
         return getIntegratedResult(swat_reduction, bmpCost_different,
-            bmpType != BMPType.Small_Dam && bmpType != BMPType.Holding_Pond && swatColumnType == SWATResultColumnType.water);
+            bmpType != BMPType.Small_Dams && bmpType != BMPType.Holding_Ponds && swatColumnType == SWATResultColumnType.water);
     }
 
     private boolean isCropBMPResultsZero(Project project, Scenario mainScenario, Scenario compareScenario, BMPType bmpType, int id) throws Exception{
@@ -185,7 +185,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
             if (bmpType == BMPType.Tillage_Farm && id <= 0) return true;
 
             //no tillage and forage bmps
-            if (compareScenario.GetScenarioType() == ScenarioType.Normal && compareScenario.GetCropBMPLevel() == BMPSelectionLevelType.Unknown)
+            if (compareScenario.getScenarioType() == ScenarioType.Normal && compareScenario.getCropBMPLevel() == BMPSelectionLevelType.Unknown)
                 return true;
 
             //have tillage or forage bmps
@@ -194,10 +194,10 @@ public class ScenarioIntegratedResult extends ScenarioResult{
             if (bmpType == BMPType.Tillage_Farm) forageType = BMPType.Forage_Farm;
             else if (bmpType == BMPType.Tillage_Subbasin) forageType = BMPType.Forage_Subbasin;
 
-            if (!mainScenario.GetScenarioDesign().IsInDesign(project, mainScenario, bmpType, id) &&
-                !compareScenario.GetScenarioDesign().IsInDesign(project, mainScenario, bmpType, id) &&
-                !mainScenario.GetScenarioDesign().IsInDesign(project, mainScenario, forageType, id) &&
-                !compareScenario.GetScenarioDesign().IsInDesign(project, mainScenario, forageType, id))
+            if (!mainScenario.getScenarioDesign().IsInDesign(mainScenario, bmpType, id) &&
+                !compareScenario.getScenarioDesign().IsInDesign(mainScenario, bmpType, id) &&
+                !mainScenario.getScenarioDesign().IsInDesign(mainScenario, forageType, id) &&
+                !compareScenario.getScenarioDesign().IsInDesign(mainScenario, forageType, id))
             {
                 return true;
             }
@@ -226,7 +226,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         //try to get compare scenario
         if (compareType == ResultDisplayScenarioCompareType.Compare && compareScenario == null)
         {
-            compareScenario = mainScenario.BaseScenario(project);
+            compareScenario = mainScenario.getBaseScenario(project);
             if (compareScenario == null)
                 throw new Exception("Please create base scenario first.");
         }
@@ -249,7 +249,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
                 return GetSWATResult().GetAverageResult(project, bmpType, swatColumnType.toString(), id, startYear, endYear,compareScenario, false);
             else if (resultType == ResultDisplayResultType.Economic)    //economic results
             {
-                if (bmpType == BMPType.Small_Dam || bmpType == BMPType.Holding_Pond || bmpType == BMPType.Grazing)
+                if (bmpType == BMPType.Small_Dams || bmpType == BMPType.Holding_Ponds || bmpType == BMPType.Grazing)
                     economicColumnType = ResultDisplayTillageForageEconomicResultType.Cost;
                 return GetEconomicResult().GetAverageResult(project, bmpType, economicColumnType.toString(), id, startYear, endYear, compareScenario, false);
             }
@@ -283,7 +283,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
             ResultDisplayTillageForageEconomicResultType economicColumnType, 
             int id, int startYear, int endYear, Scenario compareScenario) throws Exception{            
             List<ResultDataPair> swat = GetSWATResult().GetResults(project, type, swatColumnType.toString(), id, startYear, endYear, compareScenario, false);
-            if (type == BMPType.Small_Dam || type == BMPType.Holding_Pond || type == BMPType.Grazing)
+            if (type == BMPType.Small_Dams || type == BMPType.Holding_Ponds || type == BMPType.Grazing)
                 economicColumnType = ResultDisplayTillageForageEconomicResultType.Cost;
             List<ResultDataPair> economic = GetEconomicResult().GetResults(project, type, economicColumnType.toString(), id, startYear, endYear, compareScenario, false);
 
@@ -292,7 +292,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
                 throw new Exception("Number of results of SWAT and economic should be same.");
 
             return getIntegratedResult(swat, economic,
-                type != BMPType.Small_Dam && type != BMPType.Holding_Pond && swatColumnType == SWATResultColumnType.water);
+                type != BMPType.Small_Dams && type != BMPType.Holding_Ponds && swatColumnType == SWATResultColumnType.water);
         }
     
     public List<ResultDataPair> GetResults(Project project, Scenario mainScenario,
@@ -313,7 +313,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         //try to get compare scenario
         if (compareType == ResultDisplayScenarioCompareType.Compare && compareScenario == null)
         {
-            compareScenario = mainScenario.BaseScenario(project);
+            compareScenario = mainScenario.getBaseScenario(project);
             if (compareScenario == null)
                 throw new Exception("Please create base scenario first.");
         }
@@ -338,7 +338,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         }
 
         //change column type if necessary
-        if (bmpType == BMPType.Small_Dam || bmpType == BMPType.Holding_Pond || bmpType == BMPType.Grazing)
+        if (bmpType == BMPType.Small_Dams || bmpType == BMPType.Holding_Ponds || bmpType == BMPType.Grazing)
             economicColumnType = ResultDisplayTillageForageEconomicResultType.Cost;
 
         //get on-site results
@@ -388,7 +388,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
             economicResultColumn, id, startYear, endYear, null, false);
 
         //List<ResultDataPair> swat_compare = compareScenario.Result.SWATResult.GetResults(project, bmpType, swatColumnType.ToString(), id, startYear, endYear);
-        List<ResultDataPair> bmpCost_compare = compareScenario.GetResult().GetResults(project, bmpType,
+        List<ResultDataPair> bmpCost_compare = compareScenario.getResult().GetResults(project, bmpType,
             economicResultColumn, id, startYear, endYear, null, false);
 
         List<ResultDataPair> swat_reduction = //this.getDifference(swat_compare,swat);
@@ -398,7 +398,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         List<ResultDataPair> bmpCost_different = this.getDifference(bmpCost,bmpCost_compare);
 
         return getIntegratedResult(swat_reduction, bmpCost_different,
-            bmpType != BMPType.Small_Dam && bmpType != BMPType.Holding_Pond && swatColumnType == SWATResultColumnType.water);   // !! out
+            bmpType != BMPType.Small_Dams && bmpType != BMPType.Holding_Ponds && swatColumnType == SWATResultColumnType.water);   // !! out
     }
     
     private void debugOutputChartData(String name, List<ResultDataPair> data) {
@@ -429,11 +429,11 @@ public class ScenarioIntegratedResult extends ScenarioResult{
     
     public List<ResultDataPair> GetOffSiteResults_SWAT(
            Project project, Scenario mainScenario, Scenario compareScenario, SWATResultColumnType swatColumnType) throws Exception{
-        List<ResultDataPair> swat = this.GetSWATResult().GetResults(project, BMPType.Small_Dam, swatColumnType.toString(), -1, -1, -1, null, false);
+        List<ResultDataPair> swat = this.GetSWATResult().GetResults(project, BMPType.Small_Dams, swatColumnType.toString(), -1, -1, -1, null, false);
 
         if (compareScenario == null) return swat;
 
-        List<ResultDataPair> swat_base = compareScenario.GetResult().GetSWATResult().GetResults(project, BMPType.Small_Dam, swatColumnType.toString(),  -1, -1, -1, null, false);
+        List<ResultDataPair> swat_base = compareScenario.getResult().GetSWATResult().GetResults(project, BMPType.Small_Dams, swatColumnType.toString(),  -1, -1, -1, null, false);
 
         List<ResultDataPair> difference = getDifference(swat, swat_base);
 
@@ -443,7 +443,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         for (int field : fields)
         {
             List<ResultDataPair> oneFieldResults = 
-                        mainScenario.GetResult().GetResults(
+                        mainScenario.getResult().GetResults(
                         project, mainScenario, field, ResultDisplayScenarioCompareType.Compare,
                         compareScenario, ResultDisplayResultLevelType.OnSite, BMPType.Tillage_Field
                         , ResultDisplayResultType.SWAT, swatColumnType, ResultDisplayTillageForageEconomicResultType.Cost, this.StartYear(), this.EndYear());
@@ -492,7 +492,7 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         if (compareScenario == null) return eco;
 
         List<ResultDataPair> eco_base =
-            compareScenario.GetResult().GetEconomicResult().GetResults(project, type, economicResult.toString(), -1, -1, -1, null, false);
+            compareScenario.getResult().GetEconomicResult().GetResults(project, type, economicResult.toString(), -1, -1, -1, null, false);
         return getDifference(eco, eco_base);
     }
 
@@ -506,11 +506,11 @@ public class ScenarioIntegratedResult extends ScenarioResult{
         if (compareScenario == null)
             throw new Exception("Off-site intergrated results must have a compare scenario.");
 
-        //List<ResultDataPair> swat = swatResult.GetResults(project, BMPType.Small_Dam, swatColumnType.ToString(), -1);
+        //List<ResultDataPair> swat = swatResult.GetResults(project, BMPType.Small_Dams, swatColumnType.ToString(), -1);
         List<ResultDataPair> totalCost = this.GetEconomicResult().GetOffSiteResults_TotalCost(project);
 
-        //List<ResultDataPair> swat_base = compareScenario.Result.SWATResult.GetResults(project, BMPType.Small_Dam, swatColumnType.ToString(), -1);
-        List<ResultDataPair> totalpCost_base = compareScenario.GetResult().GetEconomicResult().GetOffSiteResults_TotalCost(project);
+        //List<ResultDataPair> swat_base = compareScenario.Result.SWATResult.GetResults(project, BMPType.Small_Dams, swatColumnType.ToString(), -1);
+        List<ResultDataPair> totalpCost_base = compareScenario.getResult().GetEconomicResult().GetOffSiteResults_TotalCost(project);
 
         List<ResultDataPair> swat_reduction = //getDifference(swat_base, swat);
             GetOffSiteResults_SWAT(project, mainScenario, compareScenario, swatColumnType);

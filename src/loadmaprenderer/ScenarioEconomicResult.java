@@ -36,14 +36,14 @@ public class ScenarioEconomicResult extends ScenarioResult {
 
     @Override
     protected ResultSet getStartEndYearTable() {
-        ResultSet rs = getCorrepondingResultTable(null, BMPType.Small_Dam, "", true);
+        ResultSet rs = getCorrepondingResultTable(null, BMPType.Small_Dams, "", true);
         try {
             if (rs.next()) return rs;
         } catch (SQLException ex) {
             Logger.getLogger(ScenarioEconomicResult.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        rs = getCorrepondingResultTable(null, BMPType.Holding_Pond, "", true);
+        rs = getCorrepondingResultTable(null, BMPType.Holding_Ponds, "", true);
         try {
             if (rs.next()) return rs;
         } catch (SQLException ex) {
@@ -123,10 +123,10 @@ public class ScenarioEconomicResult extends ScenarioResult {
         if (closeFirst){
             switch (type)
             {
-            case Small_Dam:
+            case Small_Dams:
                 resultSmallDam = null;
                 break;
-            case Holding_Pond:
+            case Holding_Ponds:
                 resultHoldingPond = null;
                 break;
             case Grazing:
@@ -151,10 +151,10 @@ public class ScenarioEconomicResult extends ScenarioResult {
         }
         switch (type)
         {
-            case Small_Dam:
+            case Small_Dams:
                 rs = resultSmallDam;
                 break;
-            case Holding_Pond:
+            case Holding_Ponds:
                 rs = resultHoldingPond;
                 break;
             case Grazing:
@@ -186,10 +186,10 @@ public class ScenarioEconomicResult extends ScenarioResult {
 
             switch (type)
             {
-                case Small_Dam:
+                case Small_Dams:
                     resultSmallDam = rs;
                     break;
-                case Holding_Pond:
+                case Holding_Ponds:
                      resultHoldingPond = rs;
                     break;
                 case Grazing:
@@ -231,16 +231,16 @@ public class ScenarioEconomicResult extends ScenarioResult {
     
     private void createOffResults() {
         if (offSiteResults == null) offSiteResults = new HashMap<BMPType, Map<String, List<ResultDataPair>>>();
-        createOffResults(BMPType.Small_Dam);
-        createOffResults(BMPType.Holding_Pond);
+        createOffResults(BMPType.Small_Dams);
+        createOffResults(BMPType.Holding_Ponds);
         createOffResults(BMPType.Grazing);
         createOffResults(BMPType.Tillage_Field);
     }
     
     private void createOffResults(BMPType type) {
         offSiteResults.put(type, new HashMap<String, List<ResultDataPair>>());
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond ||
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds ||
             type == BMPType.Grazing)
             offSiteResults.get(type).put("Cost", new ArrayList<ResultDataPair>());
         else
@@ -251,8 +251,8 @@ public class ScenarioEconomicResult extends ScenarioResult {
     }
     
     private void calculateOffResults(Project project) throws Exception {
-        calculateOffResults(project,BMPType.Small_Dam);
-        calculateOffResults(project, BMPType.Holding_Pond);
+        calculateOffResults(project,BMPType.Small_Dams);
+        calculateOffResults(project, BMPType.Holding_Ponds);
         calculateOffResults(project, BMPType.Grazing);
         calculateOffResults(project, BMPType.Tillage_Field);
     }
@@ -263,8 +263,8 @@ public class ScenarioEconomicResult extends ScenarioResult {
 
         for(int year=startYear;year<=endYear;year++)
         {
-            if (type == BMPType.Small_Dam ||
-                type == BMPType.Holding_Pond ||
+            if (type == BMPType.Small_Dams ||
+                type == BMPType.Holding_Ponds ||
                 type == BMPType.Grazing)
                 offSiteResults.get(type).get("Cost").add(
                     new ResultDataPair(year, getTotalCost(project,type, year, ResultDisplayTillageForageEconomicResultType.Cost)));
@@ -297,7 +297,7 @@ public class ScenarioEconomicResult extends ScenarioResult {
             for (BMPType type : offSiteResults.keySet())
             {
                 Map<String,List<ResultDataPair>> results = offSiteResults.get(type);
-                if (type == BMPType.Small_Dam || type == BMPType.Holding_Pond)
+                if (type == BMPType.Small_Dams || type == BMPType.Holding_Ponds)
                     totalCost += results.get("Cost").get(year - StartYear()).getData(); //$
                 else if (type == BMPType.Grazing || type == BMPType.Grazing_Subbasin)
                     totalCost += results.get("Cost").get(year - StartYear()).getData() * Spatial.GetShapeArea(BMPType.Grazing); //$/ha * ha
@@ -311,8 +311,8 @@ public class ScenarioEconomicResult extends ScenarioResult {
     
     private double getTotalCost(Project project, BMPType type, int year, ResultDisplayTillageForageEconomicResultType columnType) throws Exception{
         ResultSet rs = getCorrepondingResultTable(null, type, "", true);
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond)    //$
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds)    //$
             return computeValueFromResultSet(rs, "sum(cost)", "year=" + String.valueOf(year));
         else                                //$/ha
         {

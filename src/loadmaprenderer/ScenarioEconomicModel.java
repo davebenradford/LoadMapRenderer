@@ -85,7 +85,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
     private static String HRUAreaTable = "hru_area";
     private static String SubbasinAreaTable = "subbasin_area";
     
-    private static Connection connSpatial = Query.OpenConnection(Project.GetSpatialDB());
+    private static Connection connSpatial = Query.OpenConnection(Project.getSpatialDB());
     
     private static Map <Integer, Double> fieldIDnArea = Spatial.GetTableIDnArea(connSpatial, FieldAreaTable);
     private static Map <Integer, Double> farmIDnArea = Spatial.GetTableIDnArea(connSpatial, FarmAreaTable);
@@ -101,8 +101,8 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         prepareTables();
         System.out.println("Created empty economic tables!");
 
-        int startYear = scenario.GetStartYear();
-        int endYear = scenario.GetEndYear();
+        int startYear = scenario.getStartYear();
+        int endYear = scenario.getEndYear();
 
         if(startYear <= 0 || endYear <=0)
             throw new Exception("Wrong year.");
@@ -116,11 +116,11 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
     }
     
     private void saveCropBMPEconomic(Connection conn, List<Integer> tillages, List<Integer> forages, Project project, Scenario scenario, int startYear, int endYear) throws SQLException, Exception{
-        if (scenario.GetCropBMPLevel() == BMPSelectionLevelType.Field)
+        if (scenario.getCropBMPLevel() == BMPSelectionLevelType.Field)
             saveCropBMPEconomicField(conn, tillages, forages, project, scenario, startYear, endYear);
-        else if (scenario.GetCropBMPLevel() == BMPSelectionLevelType.Farm)
+        else if (scenario.getCropBMPLevel() == BMPSelectionLevelType.Farm)
             saveCropBMPEconomicFarm(conn, tillages, forages, project, scenario, startYear, endYear);
-        else if (scenario.GetCropBMPLevel() == BMPSelectionLevelType.Subbasin)
+        else if (scenario.getCropBMPLevel() == BMPSelectionLevelType.Subbasin)
             saveCropBMPEconomicSubbasin(conn, tillages, forages, project, scenario, startYear, endYear);
         else //level == unknown
             saveCropBMPEconomicField(conn, tillages, forages, project, scenario, startYear, endYear);
@@ -129,7 +129,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
     private void saveCropBMPsEconomic(Project project, Scenario scenario, int startYear, int endYear) throws SQLException, Exception{
         BMPType tillType = BMPType.Tillage_Field;
         BMPType forageType = BMPType.Forage_Field;
-        switch (scenario.GetCropBMPLevel()){
+        switch (scenario.getCropBMPLevel()){
             case Field:
                 tillType = BMPType.Tillage_Field;
                 forageType = BMPType.Forage_Field;
@@ -144,10 +144,10 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 break;
         }
         
-        List<Integer> tillages = ScenarioDesign.ReadDesign(project, scenario, tillType);
-        List<Integer> forages = ScenarioDesign.ReadDesign(project, scenario, forageType);
+        List<Integer> tillages = scenario.getScenarioDesign().ReadDesign(scenario, tillType);
+        List<Integer> forages = scenario.getScenarioDesign().ReadDesign(scenario, forageType);
         
-        Connection conn = Query.OpenConnection(scenario.GetScenarioDB());
+        Connection conn = Query.OpenConnection(scenario.getScenarioDB());
 
         saveCropBMPEconomic(conn, tillages, forages, project, scenario, startYear, endYear);
     }
@@ -164,7 +164,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         {
             fieldIDs.remove(till);
             sb.append(getCropBMPEconomicSQL(conn, scenario,
-                BMPSelectionLevelType.Field, till, scenario.GetTillageType(), startYear, endYear, SQLPrefixEconomiccrop_field));
+                BMPSelectionLevelType.Field, till, scenario.getTillageType(), startYear, endYear, SQLPrefixEconomiccrop_field));
         }
         for (int forage : forages)
         {
@@ -196,7 +196,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
             Map<Integer, TillageType> field_tillageTypes = new HashMap<>();
             for (int field : fieldnPercents.keySet())
             {
-                if (tillIds.contains(field)) field_tillageTypes.put(field, scenario.GetTillageType());
+                if (tillIds.contains(field)) field_tillageTypes.put(field, scenario.getTillageType());
                 else if (ForageIds.contains(field)) field_tillageTypes.put(field, TillageType.Forage);
                 else field_tillageTypes.put(field, TillageType.Base);
             }
@@ -211,7 +211,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 for (int field : fieldnPercents.keySet())
                 {
                     CropEconomic fieldEconomic = getCropEconomic(conn,
-                        BMPSelectionLevelType.Field, field, scenario.GetBMPScenerioBaseType(),
+                        BMPSelectionLevelType.Field, field, scenario.getBMPScenerioBaseType(),
                         field_tillageTypes.get(field), null, year);
                     field_yields.put(field,fieldEconomic.getYield());
                     field_revenues.put(field,fieldEconomic.getRevenue());
@@ -248,7 +248,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
             Map<Integer, TillageType> field_tillageTypes = new HashMap();
             for (int field : fieldnPercents.keySet())
             {
-                if (tillIds.contains(field)) field_tillageTypes.put(field, scenario.GetTillageType());
+                if (tillIds.contains(field)) field_tillageTypes.put(field, scenario.getTillageType());
                 else if (ForageIds.contains(field)) field_tillageTypes.put(field, TillageType.Forage);
                 else field_tillageTypes.put(field, TillageType.Base);
             }
@@ -263,7 +263,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 for (int field : fieldnPercents.keySet())
                 {
                     CropEconomic fieldEconomic = getCropEconomic(conn,
-                        BMPSelectionLevelType.Field, field, scenario.GetBMPScenerioBaseType(),
+                        BMPSelectionLevelType.Field, field, scenario.getBMPScenerioBaseType(),
                         field_tillageTypes.get(field), null, year);
                     field_yields.put(field, fieldEconomic.getYield());
                     field_revenues.put(field, fieldEconomic.getRevenue());
@@ -310,7 +310,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         {
             farmIDs.remove(till);
             sb.append(getCropBMPEconomicSQL(conn, scenario,
-                BMPSelectionLevelType.Farm, till, scenario.GetTillageType(), startYear, endYear, SQLPrefixEconomicCropFarm));
+                BMPSelectionLevelType.Farm, till, scenario.getTillageType(), startYear, endYear, SQLPrefixEconomicCropFarm));
         }
         for (int forage : forages)
         {
@@ -352,7 +352,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         {
             fieldIDs.remove(till);
             sb.append(getCropBMPEconomicSQL(conn, scenario,
-                BMPSelectionLevelType.Field, till, scenario.GetTillageType(), startYear, endYear, SQLPrefixEconomiccrop_field));
+                BMPSelectionLevelType.Field, till, scenario.getTillageType(), startYear, endYear, SQLPrefixEconomiccrop_field));
         }
 
         Map<Integer, Double> forageIdnPercents = new HashMap();
@@ -411,7 +411,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
             Map<Integer, TillageType> field_tillageTypes = new HashMap();
             for (int field : fieldnPercents.keySet())
             {
-                if (tillFieldIDs.contains(field)) field_tillageTypes.put(field, scenario.GetTillageType());
+                if (tillFieldIDs.contains(field)) field_tillageTypes.put(field, scenario.getTillageType());
                 else if (ForageFieldIDs.contains(field)) field_tillageTypes.put(field, TillageType.Forage);
                 else field_tillageTypes.put(field, TillageType.Base);
             }
@@ -426,7 +426,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 for (int field : fieldnPercents.keySet())
                 {
                     CropEconomic fieldEconomic = getCropEconomic(conn,
-                        BMPSelectionLevelType.Field, field, scenario.GetBMPScenerioBaseType(),
+                        BMPSelectionLevelType.Field, field, scenario.getBMPScenerioBaseType(),
                         field_tillageTypes.get(field), null, year);
                     field_yields.put(field,fieldEconomic.getYield());
                     field_revenues.put(field,fieldEconomic.getRevenue());
@@ -476,7 +476,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         {
             subbasinIDs.remove(till);
             sb.append(getCropBMPEconomicSQL(conn, scenario,
-               BMPSelectionLevelType.Subbasin, till, scenario.GetTillageType(), startYear, endYear, SQLPrefixEconomicCropSubbasin));
+               BMPSelectionLevelType.Subbasin, till, scenario.getTillageType(), startYear, endYear, SQLPrefixEconomicCropSubbasin));
         }
         for (int forage : forages)
         {
@@ -507,7 +507,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
             Map<Integer, TillageType> field_tillageTypes = new HashMap();
             for (int sub : subnPercents.keySet())
             {
-                if (till_Subbasins.contains(sub)) field_tillageTypes.put(sub, scenario.GetTillageType());
+                if (till_Subbasins.contains(sub)) field_tillageTypes.put(sub, scenario.getTillageType());
                 else if (forage_Subbasins.contains(sub)) field_tillageTypes.put(sub, TillageType.Forage);
                 else field_tillageTypes.put(sub, TillageType.Base);
             }
@@ -526,7 +526,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 for (int sub : subnPercents.keySet())
                 {
                     CropEconomic fieldEconomic = getCropEconomic(conn,
-                        BMPSelectionLevelType.Field, field, scenario.GetBMPScenerioBaseType(),
+                        BMPSelectionLevelType.Field, field, scenario.getBMPScenerioBaseType(),
                         field_tillageTypes.get(sub), null, year);
                     yield += fieldEconomic.getYield() * subbasinIDnArea.get(sub) * subnPercents.get(sub);
                     revenue += fieldEconomic.getRevenue() * subbasinIDnArea.get(sub) * subnPercents.get(sub);
@@ -606,7 +606,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         StringBuilder sb = new StringBuilder();
         for (int year = startYear; year <= endYear; year++)
         {
-            CropEconomic eco = getCropEconomic(conn, level, id, scenario.GetBMPScenerioBaseType(), tillType, null, year);
+            CropEconomic eco = getCropEconomic(conn, level, id, scenario.getBMPScenerioBaseType(), tillType, null, year);
             sb.append(String.format("%s%d,%d,%s);",
                 prefix, id, year, eco.InsertSQL("", -1, -1)));
         }
@@ -616,10 +616,10 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
 
     
     private void prepareTables() throws SQLException{
-        updateTables(scenario.GetScenarioDB());
+        updateTables(scenario.getScenarioDB());
         System.out.println("Cleared economic related tables!");
-        prepareTable(BMPType.Small_Dam);
-        prepareTable(BMPType.Holding_Pond);
+        prepareTable(BMPType.Small_Dams);
+        prepareTable(BMPType.Holding_Ponds);
         prepareTable(BMPType.Grazing);
         prepareTable(BMPType.Tillage_Field);
         prepareTable(BMPType.Forage_Field);
@@ -658,18 +658,18 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
         
         switch (type)
         {
-            case Small_Dam:
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameSmallDamEconomic,
+            case Small_Dams:
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameSmallDamEconomic,
                     _id, _economic_year, _economic_cost);
                 break;
-            case Holding_Pond:
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameHoldingPondEconomic,
+            case Holding_Ponds:
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameHoldingPondEconomic,
                         _id, _economic_year, _economic_cost);
                 break;
             case Grazing:
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameGrazingEconomic,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameGrazingEconomic,
                         _id, _economic_year, _economic_cost);
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameGrazingEconomicSubbasin,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameGrazingEconomicSubbasin,
                         _id, _economic_year, _economic_cost);
                 break;
             case Tillage_Farm:
@@ -682,13 +682,13 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 AccessColumn _economic_netreturn = new AccessColumn();
                 _economic_netreturn.setColumnName(columnNameNetReturn);_economic_netreturn.setType(Double.TYPE);
 
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameCropEconomicfield,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameCropEconomicfield,
                     _id, _economic_year, _economic_yield,
                     _economic_revenue, _economic_cost, _economic_netreturn);
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameCropEconomicfarm,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameCropEconomicfarm,
                     _id, _economic_year, _economic_yield,
                     _economic_revenue, _economic_cost, _economic_netreturn);
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameCropEconomicSubbasin,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameCropEconomicSubbasin,
                     _id, _economic_year, _economic_yield,
                     _economic_revenue, _economic_cost, _economic_netreturn);
                 break;
@@ -702,13 +702,13 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
                 AccessColumn _economic_netreturn_forage = new AccessColumn();
                 _economic_netreturn_forage.setColumnName(columnNameNetReturn);_economic_netreturn_forage.setType(Double.TYPE);
                 
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameCropEconomicfield,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameCropEconomicfield,
                     _id, _economic_year, _economic_yield_forage,
                     _economic_revenue_forage, _economic_cost, _economic_netreturn_forage);
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameCropEconomicfarm,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameCropEconomicfarm,
                     _id, _economic_year, _economic_yield_forage,
                     _economic_revenue_forage, _economic_cost, _economic_netreturn_forage);
-                Query.PrepareTable(scenario.GetScenarioDB(), tableNameCropEconomicSubbasin,
+                Query.PrepareTable(scenario.getScenarioDB(), tableNameCropEconomicSubbasin,
                     _id, _economic_year, _economic_yield_forage,
                     _economic_revenue_forage, _economic_cost, _economic_netreturn_forage);
                 break;
@@ -716,15 +716,15 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
     }
     
     private void saveNonCropBMPsEconomic(Project project, Scenario scenario, int startYear, int endYear) throws Exception{
-        Connection conn = Query.OpenConnection(scenario.GetScenarioDB());
-        saveNonCropBMPEconomic(conn, BMPType.Small_Dam, project, 
-                ScenarioDesign.ReadNonCropDesign(scenario, BMPType.Small_Dam), startYear, endYear);
+        Connection conn = Query.OpenConnection(scenario.getScenarioDB());
+        saveNonCropBMPEconomic(conn, BMPType.Small_Dams, project, 
+                scenario.getScenarioDesign().ReadNonCropDesign(scenario, BMPType.Small_Dams), startYear, endYear);
         System.out.println("Small dam economic results finished!");
-        saveNonCropBMPEconomic(conn, BMPType.Holding_Pond, project, 
-                ScenarioDesign.ReadNonCropDesign(scenario, BMPType.Holding_Pond), startYear, endYear);
+        saveNonCropBMPEconomic(conn, BMPType.Holding_Ponds, project, 
+                scenario.getScenarioDesign().ReadNonCropDesign(scenario, BMPType.Holding_Ponds), startYear, endYear);
         System.out.println("Holding pond economic results finished!");
         saveNonCropBMPEconomic(conn, BMPType.Grazing, project, 
-                ScenarioDesign.ReadNonCropDesign(scenario, BMPType.Grazing), startYear, endYear);
+                scenario.getScenarioDesign().ReadNonCropDesign(scenario, BMPType.Grazing), startYear, endYear);
         System.out.println("Grazing and grazing subbasin economic results finished!");
     }
     
@@ -738,10 +738,10 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
             {
                 switch (type)
                 {
-                    case Small_Dam:
+                    case Small_Dams:
                         sb.append(SQLPrefixEconomicSmallDam + item.InsertSQL_Economic(year));
                         break;
-                    case Holding_Pond:
+                    case Holding_Ponds:
                         sb.append(SQLPrefixEconomicHoldingPond + item.InsertSQL_Economic(year));
                         break;
                     case Grazing:
@@ -831,7 +831,7 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
     }
     
     private CropEconomic getCropEconomic(Connection conn, BMPSelectionLevelType level, 
-            int id, BMPScenerioBaseType baseType, TillageType tillType,
+            int id, BMPScenarioBaseType baseType, TillageType tillType,
             List<Integer> constrainFields, int year) throws Exception{
         if (level == BMPSelectionLevelType.Field)
         {
@@ -887,10 +887,10 @@ public class ScenarioEconomicModel extends ScenarioDatabaseStructure {
             throw new Exception("Wrong Type." + System.getProperty("line.separator") + Thread.currentThread());
     }
 
-    private ResultSet getCorrespondingEconomicDataTable(BMPScenerioBaseType baseType, 
+    private ResultSet getCorrespondingEconomicDataTable(BMPScenarioBaseType baseType, 
             TillageType tillType, String filter) throws SQLException{
         String economicTableName = "";
-        if (baseType == BMPScenerioBaseType.Historic)
+        if (baseType == BMPScenarioBaseType.Historic)
         {
             if (tillType == TillageType.Base)
                 economicTableName = "yield_historic";

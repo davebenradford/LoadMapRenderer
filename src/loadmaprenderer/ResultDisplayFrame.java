@@ -17,6 +17,7 @@ import java.awt.event.MouseListener;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,11 +45,8 @@ import javax.swing.event.ChangeListener;
  * @author Shao
  */
 public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeListener{
-    private ResultDisplayMap displayMap = new ResultDisplayMap();
     private ResultDisplayChart displayChart = new ResultDisplayChart();
     private JPanel displayControl = this.BuildResultsPanel();
-    private JSplitPane mapnChart = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-    private JSplitPane resultDisplay = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
     
     private Scenario mainScenario;
     private Scenario compareScenario = null;
@@ -61,60 +59,61 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
     private ResultDisplayTillageForageEconomicResultType economicType;
     private int startYear;
     private int endYear;    
-    private int featureID = 1;
+    private List<Integer> featureIDs;
     
     private List<ResultDataPair> chartResults;
-    private Map<Integer, Double> fieldResults;
-    private Map<Integer, Double> farmResults;
-    private Map<Integer, Double> subbasinResults;
-    private Map<Integer, Double> smallDamResults;
-    private Map<Integer, Double> holdingPondResults;
-    private Map<Integer, Double> gzgResults;
-    private Map<Integer, Double> gzgSubResults;
+    private Map<BMPType, Map<Integer, Double>> mapResults = new HashMap<BMPType, Map<Integer, Double>>();
+    private Map<BMPType, Map<Integer, String>> mapCats = new HashMap<BMPType, Map<Integer, String>>();
+    
+    private int intervalNum = 5;
     
     private static final Font f = new Font("Sans_Serif", Font.PLAIN, 12);
     
-    public ResultDisplayFrame(Project p, Scenario value) throws Exception{
-        if (value == null) return;
-        this.SetMainScenario(value, false);
-        this.SetCompareType(ResultDisplayScenarioCompareType.NoCompare, false);
-        this.SetBMPType(BMPType.Tillage_Field, false);
-        this.SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
-        this.SetEndYear(GetMainScenario().GetEndYear(), false);
-        this.SetStartYear(GetMainScenario().GetStartYear(), false);
-        this.SetResultLevel(ResultDisplayResultLevelType.OnSite, false);
-        this.SetResultType(ResultDisplayResultType.SWAT, false);
-        this.SetSWATType(SWATResultColumnType.sediment, false);
-        this.SetProject(p);
+    public ResultDisplayFrame(Project p, Scenario s) throws Exception{
+        if (s == null) return;
+        this.setMainScenario(s, false);
+        this.setCompareType(ResultDisplayScenarioCompareType.NoCompare, false);
+        switch (s.getCropBMPLevel()){
+            case Field:
+            case Unknown:
+                this.setBMPType(BMPType.Tillage_Field, false);
+                break;
+            case Subbasin:
+                this.setBMPType(BMPType.Tillage_Subbasin, false);
+                break;
+            case Farm:
+                this.setBMPType(BMPType.Tillage_Farm, false);
+                break;
+        }        
+        this.setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+        this.setEndYear(getMainScenario().getEndYear(), false);
+        this.setStartYear(getMainScenario().getStartYear(), false);
+        this.setResultLevel(ResultDisplayResultLevelType.OnSite, false);
+        if (s.getHasSWATResult()) {
+            this.setResultType(ResultDisplayResultType.SWAT, false);
+        } else if (s.getHasEcoResult()) {
+            this.setResultType(ResultDisplayResultType.Economic, false);
+        }
+        this.setSWATType(SWATResultColumnType.sediment, false);
+        this.setProject(p);
         
-        mapnChart.add(displayMap);
-        mapnChart.add(displayChart);
-        resultDisplay.add(GetDisplayControl());      
-        resultDisplay.add(mapnChart);
-        
-        displayMap.setSize(200,500);
-        
-        this.add(resultDisplay);
         updateMap();
         updateChart();
     }
     
-    public ResultDisplayMap GetDisplayMap(){
-        return displayMap;
-    }    
-    public ResultDisplayChart GetDisplayChart(){
+    public ResultDisplayChart getDisplayChart(){
         return displayChart;
     }    
-    public JPanel GetDisplayControl(){
+    public JPanel getDisplayControl(){
         if (displayControl == null) displayControl = this.BuildResultsPanel();
         return displayControl;
     }
     
-    public Scenario GetMainScenario(){
+    public Scenario getMainScenario(){
         if (mainScenario == null) return new Scenario();
         return mainScenario;
     }
-    public void SetMainScenario(Scenario value, boolean updateFlag) throws Exception{
+    public void setMainScenario(Scenario value, boolean updateFlag) throws Exception{
         if(value == null) return;
         mainScenario = value;
         if (updateFlag){
@@ -123,42 +122,40 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         }        
     }
     
-    public Scenario GetCompareScenario(){
+    public Scenario getCompareScenario(){
         return compareScenario;
     }
-    public void SetCompareScenario(Scenario value, boolean updateFlag) throws Exception{
-        if(value == null) return;
+    public void setCompareScenario(Scenario value, boolean updateFlag) throws Exception{
         compareScenario = value;
         if (updateFlag){
             updateMap();
             updateChart();
-        }      
+        }
     }
     
-    public Project GetProject(){
+    public Project getProject(){
         return project;
     }
-    public void SetProject(Project value){
+    public void setProject(Project value){
         project = value;
     }
     
-    public ResultDisplayResultLevelType GetResultLevel(){
+    public ResultDisplayResultLevelType getResultLevel(){
         return resultLevelType;
     }
-    public void SetResultLevel(ResultDisplayResultLevelType value, boolean updateFlag) throws Exception{
+    public void setResultLevel(ResultDisplayResultLevelType value, boolean updateFlag) throws Exception{
         resultLevelType = value;
-        if (updateFlag){
-            updateMap();
+        if (updateFlag){            
             updateChart();
-            if (resultLevelType == ResultDisplayResultLevelType.OffSite)
-                updateChartYear();
+            if (value == ResultDisplayResultLevelType.OnSite)
+                updateMap();
         }      
     }
     
-    public ResultDisplayScenarioCompareType GetCompareType(){
+    public ResultDisplayScenarioCompareType getCompareType(){
         return compareType;
     }
-    public void SetCompareType(ResultDisplayScenarioCompareType value, boolean updateFlag) throws Exception{
+    public void setCompareType(ResultDisplayScenarioCompareType value, boolean updateFlag) throws Exception{
         compareType = value;
         if (updateFlag){
             updateMap();
@@ -166,33 +163,32 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         }
     }
     
-    public int GetFeatureID(){
-        return featureID;
+    public List<Integer> getFeatureIDs(){
+        if (featureIDs == null) return new ArrayList<Integer>();
+        return featureIDs;
     }
-    public void SetFeatureID(int value, boolean updateFlag) throws Exception{
-        featureID = value;
+    public void setFeatureIDs(List<Integer> values, boolean updateFlag) throws Exception{
+        featureIDs = values;
         if (updateFlag){
-            updateMap();
             updateChart();
         }      
     }
     
     
-    public BMPType GetBMPType(){
+    public BMPType getBMPType(){
         return bmpType;
     }
-    public void SetBMPType(BMPType value, boolean updateFlag) throws Exception{
+    public void setBMPType(BMPType value, boolean updateFlag) throws Exception{
         bmpType = value;
         if (updateFlag){
-            updateMap();
             updateChart();
         }      
     }
     
-    public ResultDisplayResultType GetResultType(){
+    public ResultDisplayResultType getResultType(){
         return resultType;
     }
-    public void SetResultType(ResultDisplayResultType value, boolean updateFlag) throws Exception{
+    public void setResultType(ResultDisplayResultType value, boolean updateFlag) throws Exception{
         resultType = value;
         if (updateFlag){            
             updateMap();
@@ -200,10 +196,10 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         }      
     }
     
-    public SWATResultColumnType GetSWATType(){
+    public SWATResultColumnType getSWATType(){
         return SWATType;
     }
-    public void SetSWATType(SWATResultColumnType value, boolean updateFlag) throws Exception{
+    public void setSWATType(SWATResultColumnType value, boolean updateFlag) throws Exception{
         SWATType = value;
         if (updateFlag){
             updateMap();
@@ -211,10 +207,10 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         }      
     }
     
-    public ResultDisplayTillageForageEconomicResultType GetEconomicType(){
+    public ResultDisplayTillageForageEconomicResultType getEconomicType(){
         return economicType;
     }
-    public void SetEconomicType(ResultDisplayTillageForageEconomicResultType value, boolean updateFlag) throws Exception{
+    public void setEconomicType(ResultDisplayTillageForageEconomicResultType value, boolean updateFlag) throws Exception{
         economicType = value;
         if (updateFlag){
             updateMap();
@@ -222,10 +218,10 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         }      
     }
     
-    public int GetStartYear(){
+    public int getStartYear(){
         return startYear;
     }
-    public void SetStartYear(int value, boolean updateFlag) throws Exception{
+    public void setStartYear(int value, boolean updateFlag) throws Exception{
         startYear = value;
         if (updateFlag){
             updateMap();
@@ -233,24 +229,71 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         }      
     }
     
-    public int GetEndYear(){
+    public int getEndYear(){
         return endYear;
     }
-    public void SetEndYear(int value, boolean updateFlag) throws Exception{
+    public void setEndYear(int value, boolean updateFlag) throws Exception{
         endYear = value;
         if (updateFlag){
             updateMap();
             updateChartYear();
         }      
-    }  
+    }
+    
+    public int getIntervalLevel(){
+        return intervalNum;
+    }
+    public void setIntervalLevel(int value){
+        if (value < 2) value = 2;
+        if (value > 7) value = 7;
+        intervalNum = value;
+    }
+    
+    public Map<Integer, Double> getLayerResult(BMPType type){
+        switch (type){
+            case Tillage_Field:
+            case Forage_Field:
+                type = BMPType.Tillage_Field;
+                break;
+            case Tillage_Farm:
+            case Forage_Farm:
+                type = BMPType.Tillage_Farm;
+                break;
+            case Tillage_Subbasin:
+            case Forage_Subbasin:
+                type = BMPType.Tillage_Subbasin;
+                break;
+        }
+        if (!mapResults.get(type).isEmpty()) return mapResults.get(type);
+        return new HashMap();
+    }
+    
+    public Map<Integer, String> getLayerCat(BMPType type){
+        switch (type){
+            case Tillage_Field:
+            case Forage_Field:
+                type = BMPType.Tillage_Field;
+                break;
+            case Tillage_Farm:
+            case Forage_Farm:
+                type = BMPType.Tillage_Farm;
+                break;
+            case Tillage_Subbasin:
+            case Forage_Subbasin:
+                type = BMPType.Tillage_Subbasin;
+                break;
+        }
+        if (!mapCats.get(type).isEmpty()) return mapCats.get(type);
+        return new HashMap();
+    }
         
     private void updateMap() throws Exception{
-        if(true) return;
-        //updateLayer(BMPType.Small_Dam);
-        //updateLayer(BMPType.Holding_Pond);
+        //if(true) return;
+        updateLayer(BMPType.Small_Dams);
+        updateLayer(BMPType.Holding_Ponds);
         updateLayer(BMPType.Grazing);
         updateLayer(BMPType.Grazing_Subbasin);
-        switch (GetBMPType())
+        switch (getBMPType())
         {
             case Tillage_Field:
             case Forage_Field:
@@ -259,9 +302,11 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
             case Tillage_Farm:
             case Forage_Farm:
                 updateLayer(BMPType.Tillage_Farm);
+                break;
             case Tillage_Subbasin:
             case Forage_Subbasin:
                 updateLayer(BMPType.Tillage_Subbasin);
+                break;
         }
     }
     
@@ -269,17 +314,17 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         List<Integer> ids = new ArrayList();
         switch (type)
         {
-            case Small_Dam:
-                ids = null;
+            case Small_Dams:
+                ids = mainScenario.getScenarioDesign().getDesign().get(BMPType.Small_Dams);
                 break;
-            case Holding_Pond:
-                ids = null;
+            case Holding_Ponds:
+                ids = mainScenario.getScenarioDesign().getDesign().get(BMPType.Holding_Ponds);
                 break;
             case Grazing:
-                ids = Spatial.GetGrazings();
+                ids = mainScenario.getScenarioDesign().getDesign().get(BMPType.Grazing);
                 break;
             case Grazing_Subbasin:
-                ids = Spatial.GetGrazingSubs();
+                ids = mainScenario.getScenarioDesign().getDesign().get(BMPType.Grazing_Subbasin);
                 break;
             case Tillage_Field:
             case Forage_Field:
@@ -294,56 +339,60 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 ids = Spatial.GetSubbasins();
                 break;
         }
-        Map<Integer, Double> mapResults = new HashMap();
+        Map<Integer, Double> tempResult = new HashMap();
         for (int id : ids){
-            Double result = GetMainScenario().GetResult().GetAverageResult(
-                    GetProject(), GetMainScenario(), id, GetCompareType(),
-                    GetCompareScenario(), GetResultLevel(), GetBMPType(), GetResultType(),
-                    GetSWATType(), GetEconomicType(), GetStartYear(), GetEndYear());
-            mapResults.put(id, result);
+            Double result = getMainScenario().getResult().GetAverageResult(
+                    getProject(), getMainScenario(), id, getCompareType(),
+                    getCompareScenario(), getResultLevel(), getBMPType(), getResultType(),
+                    getSWATType(), getEconomicType(), getStartYear(), getEndYear());
+            tempResult.put(id, result);
         }
-        switch (type)
-        {
-            case Small_Dam:
-                smallDamResults = new HashMap();
-                smallDamResults = mapResults;
-                break;
-            case Holding_Pond:
-                holdingPondResults = new HashMap();
-                holdingPondResults = mapResults;
-                break;
-            case Grazing:
-                holdingPondResults = new HashMap();
-                holdingPondResults = mapResults;
-                break;
-            case Grazing_Subbasin:
-                holdingPondResults = new HashMap();
-                holdingPondResults = mapResults;
-                break;
-            case Tillage_Field:
-            case Forage_Field:
-                fieldResults = new HashMap();
-                fieldResults = mapResults;
-                break;
-            case Tillage_Farm:
-            case Forage_Farm:
-                farmResults = new HashMap();
-                farmResults = mapResults;
-                break;
-            case Tillage_Subbasin:
-            case Forage_Subbasin:
-                subbasinResults = new HashMap();
-                subbasinResults = mapResults;
-                break;
+        Map<Integer, String> tempCat = new HashMap();
+        List<Double> values = Arrays.asList(tempResult.values().toArray(new Double[tempResult.size()]));
+        Map<Integer, Interval> intervals = Query.getQuantileIntervals(values, getIntervalLevel());
+        DecimalFormat df = new DecimalFormat("#.###");
+        for (int id : ids){
+            int cat = Query.checkInterval(intervals, tempResult.get(id));
+            String catString = "";
+            switch(cat) {
+                case(1):
+                    catString = "A " + String.valueOf(df.format(intervals.get(cat).GetLower())) + " - "
+                            + String.valueOf(df.format(intervals.get(cat).GetUpper()));
+                    tempCat.put(id, catString);
+                    break;
+                case(2):
+                    catString = "B " + String.valueOf(df.format(intervals.get(cat).GetLower())) + " - "
+                            + String.valueOf(df.format(intervals.get(cat).GetUpper()));
+                    tempCat.put(id, catString);
+                    break;
+                case(3):
+                    catString = "C " + String.valueOf(df.format(intervals.get(cat).GetLower())) + " - "
+                        + String.valueOf(df.format(intervals.get(cat).GetUpper()));
+                    tempCat.put(id, catString);
+                    break;
+                case(4):
+                    catString = "D " + String.valueOf(df.format(intervals.get(cat).GetLower())) + " - "
+                            + String.valueOf(df.format(intervals.get(cat).GetUpper()));
+                    tempCat.put(id, catString);
+                    break;
+                case(5):
+                    catString = "E " + String.valueOf(df.format(intervals.get(cat).GetLower())) + " - "
+                        + String.valueOf(df.format(intervals.get(cat).GetUpper()));
+                    tempCat.put(id, catString);
+                    break;
+                default:
+                    break;
+            }
         }
+        if (tempResult.isEmpty()) tempResult = new HashMap<Integer, Double>();
+        if (tempCat.isEmpty()) tempCat = new HashMap<Integer, String>();
+        mapResults.put(type, tempResult);
+        mapCats.put(type, tempCat);
         
-        Map<Integer, Interval> intervals = Query.GetQuantileIntervals(
-                Arrays.asList(mapResults.values().toArray(new Double[mapResults.size()])), 5);
-        
-        for (int id : mapResults.keySet())
+        for (int id : tempResult.keySet())
             System.out.println(String.format("Layer %s: ID #%d result is %f, "
-                    + "and belongs to interval #%d", type.toString(), id, mapResults.get(id), 
-                    Query.CheckInterval(intervals, mapResults.get(id))));
+                    + "and belongs to interval #%d", type.toString(), id, tempResult.get(id), 
+                    Query.checkInterval(intervals, tempResult.get(id))));
     }
     
     /**
@@ -351,13 +400,41 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
      * @throws Exception 
      */
     private void updateChart() throws Exception{
-        chartResults = GetMainScenario().GetResult().GetResults(
-                    GetProject(), GetMainScenario(), GetFeatureID(), GetCompareType(),
-                    GetCompareScenario(), GetResultLevel(), GetBMPType(), GetResultType(),
-                    GetSWATType(), GetEconomicType(), GetStartYear(), GetEndYear());
-        displayChart.DrawChart(chartResults, getChartTitle(), getDataTitle(), -99.0, false);                
-        mapnChart.remove(displayChart);
-        mapnChart.add(displayChart);
+        if (getFeatureIDs().isEmpty()){
+            chartResults = new ArrayList();
+        } else if (getFeatureIDs().size() == 1) {
+            chartResults = getMainScenario().getResult().GetResults(
+                getProject(), getMainScenario(), getFeatureIDs().get(0), getCompareType(),
+                getCompareScenario(), getResultLevel(), getBMPType(), getResultType(),
+                getSWATType(), getEconomicType(), getStartYear(), getEndYear());                
+        } else {
+            chartResults = getAverageChart();
+        }
+        displayChart.drawChart(chartResults, getChartTitle(), getDataTitle(), -99.0, false);
+    }
+    
+    private List<ResultDataPair> getAverageChart() throws Exception{
+        List<ResultDataPair> sumChart = new ArrayList();
+        for (int id : getFeatureIDs()){
+            List<ResultDataPair> eachChart = getMainScenario().getResult().GetResults(
+                getProject(), getMainScenario(), id, getCompareType(),
+                getCompareScenario(), getResultLevel(), getBMPType(), getResultType(),
+                getSWATType(), getEconomicType(), getStartYear(), getEndYear());
+            
+            if (sumChart.isEmpty()){
+                for (int i = 0; i < eachChart.size(); i++) 
+                    sumChart.add(eachChart.get(i));                
+            } else {
+                for (int i = 0; i < eachChart.size(); i++)
+                    sumChart.get(i).setData(sumChart.get(i).getData() 
+                            + eachChart.get(i).getData());                
+            }
+        }
+        
+        for (int i = 0; i < sumChart.size(); i++)
+            sumChart.get(i).setData(sumChart.get(i).getData() / getFeatureIDs().size());
+        
+        return sumChart;
     }
     
     /**
@@ -375,7 +452,7 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         
         // If the old chart results don't include the set year period, calculat
         // the chart result again.
-        if (min > GetStartYear() || max < GetEndYear()) {
+        if (min > getStartYear() || max < getEndYear()) {
             updateChart();
             return;
         }       
@@ -383,16 +460,14 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         // If the old chart results include the set year period, no calculation 
         // is needed.
         for (int i = 0; i < chartResults.size(); i++){
-            if (chartResults.get(i).getYear() < GetStartYear() || 
-                    chartResults.get(i).getYear() > GetEndYear()) {
+            if (chartResults.get(i).getYear() < getStartYear() || 
+                    chartResults.get(i).getYear() > getEndYear()) {
                 continue;
             }
             newChartResults.add(chartResults.get(i));
         }
-        displayChart.DrawChart(newChartResults, getChartTitle(), 
+        displayChart.drawChart(newChartResults, getChartTitle(), 
                 getDataTitle(), -99.0, false);
-        mapnChart.remove(displayChart);
-        mapnChart.add(displayChart);
     }
     
     /**
@@ -436,17 +511,17 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         //if (layer.LegendItems.Count() == 0) return;
         //ILegendItem item =  layer.LegendItems.ElementAt(0);
 
-        ResultDisplayTillageForageEconomicResultType economicType = GetEconomicType();
-        if (GetBMPType() == BMPType.Small_Dam || GetBMPType() == BMPType.Holding_Pond 
-                || GetBMPType() == BMPType.Grazing)
+        ResultDisplayTillageForageEconomicResultType economicType = getEconomicType();
+        if (getBMPType() == BMPType.Small_Dams || getBMPType() == BMPType.Holding_Ponds 
+                || getBMPType() == BMPType.Grazing)
             economicType = ResultDisplayTillageForageEconomicResultType.Cost;
 
-        if (GetResultType() == ResultDisplayResultType.SWAT)
-            return resultNameUnit_SWAT(GetResultLevel(), GetBMPType(), GetSWATType());
-        else if (GetResultType() == ResultDisplayResultType.Economic)
-            return resultNameUnit_Economic(GetResultLevel(), GetBMPType(), economicType);
+        if (getResultType() == ResultDisplayResultType.SWAT)
+            return resultNameUnit_SWAT(getResultLevel(), getBMPType(), getSWATType());
+        else if (getResultType() == ResultDisplayResultType.Economic)
+            return resultNameUnit_Economic(getResultLevel(), getBMPType(), economicType);
         else
-            return resultNameUnit_Integrated(GetBMPType(), GetSWATType(), economicType);
+            return resultNameUnit_Integrated(getBMPType(), getSWATType(), economicType);
     }
     
     /** 
@@ -468,22 +543,22 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
             switch (swatResultType)
             {
                 case water:
-                    if (type == BMPType.Small_Dam ||
-                        type == BMPType.Holding_Pond)
+                    if (type == BMPType.Small_Dams ||
+                        type == BMPType.Holding_Ponds)
                         unit = "m^3";
                     else
                         unit = "mm";
                     break;
                 case sediment:
-                    if (type == BMPType.Small_Dam ||
-                        type == BMPType.Holding_Pond)
+                    if (type == BMPType.Small_Dams ||
+                        type == BMPType.Holding_Ponds)
                         unit = "t";
                     else
                         unit = "t/ha";
                     break;
                 default:
-                    if (type == BMPType.Small_Dam ||
-                        type == BMPType.Holding_Pond)
+                    if (type == BMPType.Small_Dams ||
+                        type == BMPType.Holding_Ponds)
                         unit = "kg";
                     else
                         unit = "kg/ha";
@@ -515,8 +590,8 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
         String unit = "";
         switch (type)
         {
-            case Small_Dam:
-            case Holding_Pond:
+            case Small_Dams:
+            case Holding_Ponds:
                 unit = "$";
                 break;
             default:
@@ -638,7 +713,7 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 String yTitle = "";
                 ResultDisplayTillageForageEconomicResultType economicType = _economicType;
                 if (_resultType == ResultDisplayResultType.SWAT)
-                    yTitle = ResultNameUnit_SWAT(_resultLevelType, BMPType.Holding_Pond, _swatType);
+                    yTitle = ResultNameUnit_SWAT(_resultLevelType, BMPType.Holding_Ponds, _swatType);
                 else if (_resultType == ResultDisplayResultType.Economic)
                     yTitle = ResultNameUnit_Economic(_resultLevelType, _offsiteEconomicBMPType, _economicType);
                 else
@@ -1038,29 +1113,29 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 jcbComp.setEnabled(false);
                 rbIntegrate.setEnabled(false);
                 try {
-                    SetCompareType(ResultDisplayScenarioCompareType.NoCompare, true);
+                    setCompareType(ResultDisplayScenarioCompareType.NoCompare, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("compare"):
                 jcbComp.setEnabled(true);
                 rbIntegrate.setEnabled(true);
                 try {
-                    SetCompareType(ResultDisplayScenarioCompareType.Compare, true);
+                    setCompareType(ResultDisplayScenarioCompareType.Compare, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("compareTo"):
                 try {
-                    SetCompareScenario(compareScenario, true);
+                    setCompareScenario(compareScenario, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("onSite"):
                 bmpPanel.setEnabled(true);
@@ -1077,11 +1152,11 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 tfRbSubbasin.setEnabled(true);
                 jcbEcon.setEnabled(false); // H.Shao
                 try {
-                    SetResultLevel(ResultDisplayResultLevelType.OnSite, true);
+                    setResultLevel(ResultDisplayResultLevelType.OnSite, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("offSite"):
                 bmpPanel.setEnabled(false);
@@ -1102,11 +1177,11 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     jcbTillFor.setEnabled(false);
                 }
                 try {
-                    SetResultLevel(ResultDisplayResultLevelType.OffSite, true);
+                    setResultLevel(ResultDisplayResultLevelType.OffSite, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("damsLayerOn"):
                 if(cbDams.isSelected()) {
@@ -1117,11 +1192,11 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     cbPonds.setEnabled(true);
                 }
                 try {
-                    SetBMPType(BMPType.Small_Dam, true);
+                    setBMPType(BMPType.Small_Dams, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("pondsLayerOn"):
                 if(cbPonds.isSelected()) {
@@ -1131,11 +1206,11 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     cbGraze.setEnabled(true);
                 }
                 try {
-                    SetBMPType(BMPType.Holding_Pond, true);
+                    setBMPType(BMPType.Holding_Ponds, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("grazingLayerOn"):
                 if(cbGraze.isSelected()) {
@@ -1151,19 +1226,19 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 break;
             case("grazingLevel"):
                 try {
-                    SetBMPType(BMPType.Grazing, true);
+                    setBMPType(BMPType.Grazing, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("subbasinLevel"):
                 try {
-                    SetBMPType(BMPType.Grazing_Subbasin, true);
+                    setBMPType(BMPType.Grazing_Subbasin, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("tillForageLevelOn"):
                 if(cbTillFor.isSelected()) {
@@ -1178,75 +1253,75 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     tfRbFarm.setEnabled(false);
                     tfRbSubbasin.setEnabled(false);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("fieldLevelOn"):
                 try {
-                    SetBMPType(BMPType.Tillage_Field, true);
+                    setBMPType(BMPType.Tillage_Field, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("farmLevelOn"):
                 try {
-                    SetBMPType(BMPType.Tillage_Farm, true);
+                    setBMPType(BMPType.Tillage_Farm, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("subbasinLevelOn"):
                 try {
-                    SetBMPType(BMPType.Tillage_Subbasin, true);
+                    setBMPType(BMPType.Tillage_Subbasin, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("onlySwat"):
                 jcbSwat.setEnabled(true);
                 jcbEcon.setEnabled(false);
                 jcbTillFor.setEnabled(false);
                 try {
-                    SetResultType(ResultDisplayResultType.SWAT, true);
+                    setResultType(ResultDisplayResultType.SWAT, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("selectSwatResult"):
                 String entSwat = jcbSwat.getSelectedItem().toString();
                 try {
                     switch(entSwat) {
                         case("Water Yield"):
-                            SetSWATType(SWATResultColumnType.water, true);
+                            setSWATType(SWATResultColumnType.water, true);
                             break;
                         case("Sediment Yield"):
-                            SetSWATType(SWATResultColumnType.sediment, true);
+                            setSWATType(SWATResultColumnType.sediment, true);
                             break;
                         case("Particulate Phosphorus"):
-                            SetSWATType(SWATResultColumnType.PP, true);
+                            setSWATType(SWATResultColumnType.PP, true);
                             break;
                         case("Dissolved Phosphorus"):
-                            SetSWATType(SWATResultColumnType.DP, true);
+                            setSWATType(SWATResultColumnType.DP, true);
                             break;
                         case("Total Phosphorus"):
-                            SetSWATType(SWATResultColumnType.TP, true);
+                            setSWATType(SWATResultColumnType.TP, true);
                             break;
                         case("Particulate Nitrogen"):
-                            SetSWATType(SWATResultColumnType.PN, true);
+                            setSWATType(SWATResultColumnType.PN, true);
                             break;
                         case("Dissolved Nitrogen"):
-                            SetSWATType(SWATResultColumnType.DN, true);
+                            setSWATType(SWATResultColumnType.DN, true);
                             break;
                         case("Total Nitrogen"):
-                            SetSWATType(SWATResultColumnType.TN, true);
+                            setSWATType(SWATResultColumnType.TN, true);
                             break;                      
                         default:
                             break;
                     }
-                    WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                    WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1265,52 +1340,52 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 }
                 
                 try {
-                    SetResultType(ResultDisplayResultType.Economic, true);
+                    setResultType(ResultDisplayResultType.Economic, true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 break;
             case("selectEconResult"):
                 String entEcon = jcbEcon.getSelectedItem().toString();
                 try {
                     switch(entEcon) {
                     case("Small Dam"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
-                        SetBMPType(BMPType.Small_Dam,true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        setBMPType(BMPType.Small_Dams,true);
                         break;
                     case("Holding Ponds"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
-                        SetBMPType(BMPType.Holding_Pond,true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        setBMPType(BMPType.Holding_Ponds,true);
                         break;
                     case("Grazing Area"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
-                        SetBMPType(BMPType.Grazing,true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        setBMPType(BMPType.Grazing,true);
                         break;
                     case("Tillage"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
                         if (tfRbField.isSelected()){
-                            SetBMPType(BMPType.Tillage_Field,true);
+                            setBMPType(BMPType.Tillage_Field,true);
                         } else if  (tfRbFarm.isSelected()) {
-                            SetBMPType(BMPType.Tillage_Farm,true);
+                            setBMPType(BMPType.Tillage_Farm,true);
                         } else {
-                            SetBMPType(BMPType.Tillage_Subbasin,true);
+                            setBMPType(BMPType.Tillage_Subbasin,true);
                         }
                         break;
                     case("Forage"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, false);
                         if (tfRbField.isSelected()){
-                            SetBMPType(BMPType.Forage_Field,true);
+                            setBMPType(BMPType.Forage_Field,true);
                         } else if  (tfRbFarm.isSelected()) {
-                            SetBMPType(BMPType.Forage_Farm,true);
+                            setBMPType(BMPType.Forage_Farm,true);
                         } else {
-                            SetBMPType(BMPType.Forage_Subbasin,true);
+                            setBMPType(BMPType.Forage_Subbasin,true);
                         }
                         break;
                     default:
                         break;
                     }
-                    WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                    WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1320,21 +1395,21 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 try {
                     switch(entTF) {
                     case("Yield"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Yield, true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Yield, true);
                         break;
                     case("Revenue"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Revenue, true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Revenue, true);
                         break;
                     case("Crop Cost"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.Cost, true);
                         break;
                     case("Crop Return"):
-                        SetEconomicType(ResultDisplayTillageForageEconomicResultType.net_return, true);
+                        setEconomicType(ResultDisplayTillageForageEconomicResultType.net_return, true);
                         break;
                     default:
                         break;
                     }
-                    WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                    WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }                
@@ -1344,8 +1419,8 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 jcbEcon.setEnabled(false);
                 jcbTillFor.setEnabled(false);
                 try {
-                    SetResultType(ResultDisplayResultType.Integrated, true);
-                    WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                    setResultType(ResultDisplayResultType.Integrated, true);
+                    WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1356,7 +1431,7 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     startSlide.updateUI();
                 }
                 try {
-                    SetStartYear(startSlide.getValue(), true);
+                    setStartYear(startSlide.getValue(), true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1367,7 +1442,7 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     endSlide.updateUI();
                 }
                 try {
-                    SetStartYear(endSlide.getValue(), true);
+                    setStartYear(endSlide.getValue(), true);
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1386,8 +1461,8 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                 slider.setValue(endSlide.getValue());
             if (!slider.getValueIsAdjusting()){
                 try {
-                    SetStartYear(slider.getValue(),true);
-                    WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                    setStartYear(slider.getValue(),true);
+                    WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1399,8 +1474,8 @@ public class ResultDisplayFrame extends JFrame implements ActionListener,ChangeL
                     slider.setValue(startSlide.getValue());
             if (!slider.getValueIsAdjusting()){
                 try {
-                    SetEndYear(slider.getValue(),true);
-                    WhiteboxGuiClone.wb.refreshSplitPaneFour();
+                    setEndYear(slider.getValue(),true);
+                    WhiteboxGuiClone.wb.refreshSplitPaneFive();
                 } catch (Exception ex) {
                     Logger.getLogger(ResultDisplayFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }

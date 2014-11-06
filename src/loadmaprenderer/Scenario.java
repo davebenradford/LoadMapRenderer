@@ -21,7 +21,6 @@ import java.util.Map;
 public class Scenario {
     private static TillageType tillageType = TillageType.Conventional;
     private ScenarioDesign design;
-    private BMPScenerioBaseType baseType = BMPScenerioBaseType.Historic;
     
     private String scenarioDB;
 
@@ -34,8 +33,10 @@ public class Scenario {
     private String projectPath;
     private boolean isNewBMPSelector;
     private boolean isNewControl;
-    private BMPScenerioBaseType baseScenarioType = BMPScenerioBaseType.Historic;
-    private BMPSelectionLevelType cropBMPLevel = BMPSelectionLevelType.Unknown; 
+    private BMPScenarioBaseType baseScenarioType = BMPScenarioBaseType.Historic;
+    private BMPSelectionLevelType cropBMPLevel = BMPSelectionLevelType.Unknown;
+    private boolean hasSWATResult = false;
+    private boolean hasEcoResult = false;
     
     private ScenarioIntegratedResult scnearioResult;
     
@@ -48,7 +49,7 @@ public class Scenario {
     }
         
     public Scenario(String prjPath, String descri, String db, 
-            ScenarioType type, BMPScenerioBaseType baseType, 
+            ScenarioType type, BMPScenarioBaseType baseType, 
             BMPSelectionLevelType cropLevel, String name) throws Exception{
         projectPath = prjPath;
         scenarioDescription = descri;
@@ -58,81 +59,110 @@ public class Scenario {
         cropBMPLevel = cropLevel;
 
         if (type == ScenarioType.Base_Conventional)
-            baseScenarioType = BMPScenerioBaseType.Conventional;
+            baseScenarioType = BMPScenarioBaseType.Conventional;
         else if (type == ScenarioType.Base_Historical)
-            baseScenarioType = BMPScenerioBaseType.Historic;
+            baseScenarioType = BMPScenarioBaseType.Historic;
         else baseScenarioType = baseType;
 
         createTime = Calendar.getInstance();
         lastModifiedTime = Calendar.getInstance();
     }   
     
-    public BMPScenerioBaseType GetBMPScenerioBaseType(){
-        return baseType;
+    
+    public String getName(){
+        return scenarioName;
+    }
+    public void setName(String value){
+        scenarioName = value;
     }
     
-    public TillageType GetTillageType(){
+    public String getDescription(){
+        return scenarioDescription;
+    }
+    public void setDescription(String value){
+        scenarioDescription = value;
+    }
+    
+    public BMPScenarioBaseType getBMPScenerioBaseType(){
+        return baseScenarioType;
+    }
+    
+    public TillageType getTillageType(){
         return tillageType;
     }
     
-    public String GetScenarioDB(){
+    public String getScenarioDB(){
         if (scenarioDB == "" || scenarioDB == null)
             System.out.println("Scenario database missing! Please check the "
                     + "path!");
         return scenarioDB;
     }
-    public void SetScenarioDB(String value){
+    public void setScenarioDB(String value){
         scenarioDB = value;
     }
     
-    public int GetStartYear(){
+    public int getStartYear(){
         return 1991;
     }
     
-    public int GetEndYear(){
+    public int getEndYear(){
         return 2010;
     }
     
-    public BMPSelectionLevelType GetCropBMPLevel(){
+    public BMPSelectionLevelType getCropBMPLevel(){
         return cropBMPLevel;
     }
     public void SetCropBMPLevel(BMPSelectionLevelType value){
         cropBMPLevel = value;
     }
     
-    public ScenarioDesign GetScenarioDesign(){
+    public ScenarioDesign getScenarioDesign(){
         if (design == null){
-            return new ScenarioDesign(GetScenarioDB());
+            return new ScenarioDesign(getScenarioDB());
         }
         return design;
     }
-    public void SetScenarioDesign(ScenarioDesign value){
+    public void setScenarioDesign(ScenarioDesign value){
         design = value;
     }
     
-    public ScenarioType GetScenarioType(){
+    public ScenarioType getScenarioType(){
         return scenarioType;
     }
     
-    public void SetBMPSelector(BMPType type, List<Integer> ids){
+    public void setBMPSelector(BMPType type, List<Integer> ids){
         scenarioBMPSelector.put(type, ids);
     }
     
-    public void SaveDesign(Project project, boolean resetSWAT, boolean resetEconomic) throws Exception{
+    public boolean getHasSWATResult(){
+        return hasSWATResult;
+    }
+    public void setHasSWATResult(boolean value){
+        hasSWATResult = value;
+    }
+    
+    public boolean getHasEcoResult(){
+        return hasEcoResult;
+    }
+    public void setHasEcoResult(boolean value){
+        hasEcoResult = value;
+    }
+    
+    public void saveDesign(Project project, boolean resetSWAT, boolean resetEconomic) throws Exception{
         if (scenarioBMPSelector == null || scenarioBMPSelector.size() == 0) return;
-        if (GetScenarioType() != ScenarioType.Normal) return;  //don't save two base scenarios
+        if (getScenarioType() != ScenarioType.Normal) return;  //don't save two base scenarios
 
         for (BMPType type : scenarioBMPSelector.keySet())
         {
             Connection conn = Query.OpenConnection(scenarioDB);
-            this.GetScenarioDesign().SaveDesignIDs(conn, scenarioBMPSelector.get(type), type, project, this); 
+            this.getScenarioDesign().SaveDesignIDs(conn, scenarioBMPSelector.get(type), type, this); 
             // !! Shao.H selector.getSelectedBMPs() returns the list of BMPItems that are selected by user
         }
         
         /*
         for (BMPType type : scenarioBMPSelector.keySet())
         {
-            String path = Project.GetSpatialDir() + 
+            String path = Project.getSpatialDir() + 
                     Project.GetSpatialBMPTableName(type) + ".dbf";
             String query = "Select * from " + Project.GetSpatialBMPTableName(type);
             Connection conn = Query.OpenConnection(path);
@@ -141,7 +171,7 @@ public class Scenario {
             for (BMPItem item : BMPItem.FromFeatureLayer(rs, type, project, this).values()){
                 items.add(item);
             }
-            this.GetScenarioDesign().SaveDesignBMPItems(conn, items, type, project, this); 
+            this.getScenarioDesign().SaveDesignBMPItems(conn, items, type, project, this); 
             // !! Shao.H selector.getSelectedBMPs() returns the list of BMPItems that are selected by user
         }
         */
@@ -151,56 +181,61 @@ public class Scenario {
         //scenario changed, the result needs to be updated
         //if(resetSWAT) this.getResult().getSWATResult().setHasResult(false);
         //if(resetEconomic) this.getResult().getEconomicResult().setHasResult(false);
-        this.GetScenarioDesign().Update();   //update design cache
+        this.getScenarioDesign().Update();   //update design cache
 
         // !! Shao.H when save the design, update the check box list in result display BMP selector,
         //    update the economic list in the result display column selector
         //if (onSaveDesign != null) onSaveDesign(this, new EventArgs());
     }
     
-    public ScenarioIntegratedResult GetResult(){
+    public ScenarioIntegratedResult getResult(){
         if (scnearioResult == null){
-            scnearioResult = new ScenarioIntegratedResult(GetScenarioDB());
-            scnearioResult.SetStartYear(this.GetStartYear());
-            scnearioResult.SetEndYear(this.GetEndYear());
+            scnearioResult = new ScenarioIntegratedResult(getScenarioDB());
+            scnearioResult.SetStartYear(this.getStartYear());
+            scnearioResult.SetEndYear(this.getEndYear());
         }
             
         return scnearioResult;
     }
-    public void SetResult(ScenarioIntegratedResult value){
+    public void setResult(ScenarioIntegratedResult value){
         scnearioResult = value;
     }    
     
-    public Scenario BaseScenario(Project project){
+    public Scenario getBaseScenario(Project project){
         for (Scenario s : project.getScenarios())
-            if (s.GetScenarioType() != ScenarioType.Normal && s.GetBMPScenerioBaseType() == this.GetBMPScenerioBaseType())
+            if (s.getScenarioType() != ScenarioType.Normal && s.getBMPScenerioBaseType() == this.getBMPScenerioBaseType())
                 return s;
         return null;
     }       
     
-    public void RunEconomic() throws Exception{
+    public void runEconomic() throws Exception{
         //save first
         //SaveDesign(project,false,true);
 
         //run economic
-        ScenarioEconomicModel Eco = new ScenarioEconomicModel(this.GetScenarioDB());
+        ScenarioEconomicModel Eco = new ScenarioEconomicModel(this.getScenarioDB());
         Eco.SetScenario(this);
         Eco.RunEconomic();
-        GetResult().GetEconomicResult().SetHasResult(true);
+        getResult().GetEconomicResult().SetHasResult(true);
 
-        GetResult().GetEconomicResult().Update();
+        getResult().GetEconomicResult().Update();
     }
     
-    public void RunSWAT() throws Exception{
+    public void runSWAT() throws Exception{
         //save first
         //SaveDesign(project,false,true);
         
         //run SWAT        
-        GetResult().GetSWATResult().RunSWAT(this);
+        getResult().GetSWATResult().RunSWAT(this);
         
-        GetResult().GetSWATResult().SetHasResult(true);
+        getResult().GetSWATResult().SetHasResult(true);
         
-        GetResult().GetSWATResult().Update();
+        getResult().GetSWATResult().Update();
+    }
+    
+    public void update(){
+        hasEcoResult = false;
+        hasSWATResult = false;
     }
     
 }

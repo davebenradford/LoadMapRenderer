@@ -40,13 +40,14 @@ public class ResultDisplayChart extends JPanel {
     
     public ResultDisplayChart(){        
         this.removeAll();
-        this.setLayout(new BorderLayout());
+        this.setLayout(new GridBagLayout());
     }
     
-    public void DrawChart(List<ResultDataPair> values, String chartTitle, 
+    public void drawChart(List<ResultDataPair> values, String chartTitle, 
             String dataTitle, double average, boolean setAverage) {
-        GridBagConstraints gbc;
         this.removeAll();
+        this.setLayout(new GridBagLayout());
+        GridBagConstraints gbc;
         if (values == null || values.isEmpty() || allZero(values))
         {
             if (values == null || values.isEmpty())
@@ -61,15 +62,12 @@ public class ResultDisplayChart extends JPanel {
         if (averageLine != null) averageLine.clear();
         if (!setAverage) average = getAverage(values);
         XYDataset dataset = makeChartDataset(values, dataTitle, average);
-        chart = makeChart(dataset, chartTitle, dataTitle);
-        
-        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.BOTH, GridBagConstraints.NORTHWEST, 0, 1, 1, 1, 1.0, 1.0);
-        
-        ChartPanel cp = new ChartPanel(chart);
-        
-        this.setLayout(new GridBagLayout());
+        chart = makeChart(dataset, chartTitle, dataTitle); 
+        ChartPanel cp = new ChartPanel(chart);        
+                
+        gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.BOTH, GridBagConstraints.CENTER, 0, 0, 1, 1, 1.0, 1.0); 
         this.add(cp, gbc);
-        this.setPreferredSize(new Dimension(500,150));
+        //this.setPreferredSize(new Dimension(500,150));
     }
     
     private XYSeriesCollection makeChartDataset(List<ResultDataPair> values, 

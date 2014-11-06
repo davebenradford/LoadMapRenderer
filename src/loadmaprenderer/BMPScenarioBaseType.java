@@ -10,7 +10,7 @@ package loadmaprenderer;
  *
  * @author Shao
  */
-public enum BMPScenerioBaseType{
+public enum BMPScenarioBaseType{
     Historic,
     Conventional
 }

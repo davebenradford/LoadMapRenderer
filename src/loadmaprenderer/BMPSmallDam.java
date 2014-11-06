@@ -22,9 +22,9 @@ public class BMPSmallDam extends BMPItem
     private int _lifetime;
 
     public BMPSmallDam(ResultSet row, int feaIndex, Project project, Scenario scenario) throws SQLException{
-        super(row, feaIndex, BMPType.Small_Dam, project, scenario);
+        super(row, feaIndex, BMPType.Small_Dams, project, scenario);
     }
-    //public BMPSmallDam(System.Data.DataRow row, Project project, Scenario scenario) : base(row, BMPType.Small_Dam,project,scenario) { }
+    //public BMPSmallDam(System.Data.DataRow row, Project project, Scenario scenario) : base(row, BMPType.Small_Dams,project,scenario) { }
 
     public double getEmbankment() throws CloneNotSupportedException{
         if (getDesignItem() == null)

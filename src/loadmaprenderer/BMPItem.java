@@ -29,7 +29,7 @@ public abstract class BMPItem extends RowItem {
         readData();
     }    
     
-    private static String _column_name_id = "ID";
+    private static String _column_name_id = "id";
     private static String _column_name_existing = "Existing";
     //private IFeature _fea;
     private int _id;
@@ -131,7 +131,7 @@ public abstract class BMPItem extends RowItem {
     }
     
     public static boolean IsCropBMP(BMPType type){
-        if (type == BMPType.Small_Dam || type == BMPType.Holding_Pond || type == BMPType.Grazing)
+        if (type == BMPType.Small_Dams || type == BMPType.Holding_Ponds || type == BMPType.Grazing)
             return false;
         return true;
     }
@@ -145,8 +145,8 @@ public abstract class BMPItem extends RowItem {
     public static String bmpType2String(BMPType type){
         switch (type)
         {
-            case Small_Dam: return "Small Dam";
-            case Holding_Pond: return "Holding Pond";
+            case Small_Dams: return "Small Dams";
+            case Holding_Ponds: return "Holding Ponds";
             case Grazing: return "Grazing";
             case Tillage_Subbasin:
             case Tillage_Field:
@@ -155,7 +155,7 @@ public abstract class BMPItem extends RowItem {
             case Forage_Subbasin:
             case Forage_Field:
             case Forage_Farm:
-                return "Forage Conversion";
+                return "Forage";
             default:
                 return "";
         }
@@ -164,7 +164,7 @@ public abstract class BMPItem extends RowItem {
     private static Map<BMPType, BMPItem> fromDatasetAndScnearioDesign(Map<BMPType, BMPItem> itemsFromDataset, Project project, Scenario scenario) throws SQLException{
         if (itemsFromDataset.keySet().size() <= 0) return null;
 
-        BMPType type = BMPType.Small_Dam;
+        BMPType type = BMPType.Small_Dams;
         for (BMPItem item : itemsFromDataset.values())
         {
             type = item.getType();
@@ -189,7 +189,7 @@ public abstract class BMPItem extends RowItem {
     public static Map<BMPType, BMPItem> FromScenarioDesign(BMPType type, Project project,Scenario scenario) throws SQLException{
         String tableName = ScenarioDesign.GetBMPTableName(type);
         String sql = "select * from " + tableName;
-        return FromScenarioDesign(Query.GetDataTable(sql, scenario.GetScenarioDB()), type, project, scenario);
+        return FromScenarioDesign(Query.GetDataTable(sql, scenario.getScenarioDB()), type, project, scenario);
     }
     
     private static Map<BMPType, BMPItem> FromScenarioDesign(
@@ -207,10 +207,10 @@ public abstract class BMPItem extends RowItem {
         BMPItem item = null;
         switch (type)
         {          
-            case Small_Dam:
+            case Small_Dams:
                 item = (BMPItem) new BMPSmallDam(r,feaIndex,project,scenario);
                 break;
-            case Holding_Pond:
+            case Holding_Ponds:
                 item = (BMPItem) new BMPHoldingPond(r, feaIndex, project, scenario);
                 break;
             case Grazing:

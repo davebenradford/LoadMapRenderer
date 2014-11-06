@@ -2148,7 +2148,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                                                             g2.setStroke(oldStroke);
                                                         } else {
                                                             if (isFilled) {
-                                                                g2.setColor(colours[r]);
+                                                                g2.setColor(selectedFeatureColour);
                                                                 g2.fill(gp);
                                                             }
                                                             if (isOutlined) {
@@ -2244,7 +2244,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
 
                                                 if (activeLayerBool && backgroundMouseMode == MOUSE_MODE_FEATURE_SELECT) {
                                                     //&& layer.getNumSelectedFeatures() > 0) {
-                                                    BoundingBox bb = record.getGeometry().getBox();
+                                                    /*BoundingBox bb = record.getGeometry().getBox();
                                                     if (bb.isPointInBox(mapX, mapY)) {
                                                         g2.setColor(selectionBoxColour);
                                                         polyline = new GeneralPath(GeneralPath.WIND_EVEN_ODD, 5);
@@ -2263,7 +2263,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                                                         Ellipse2D circle = new Ellipse2D.Double(xPoint + (xPoint2 - xPoint) / 2 - 2, yPoint + (yPoint2 - yPoint) / 2 - 2, 4, 4);
                                                         g2.fill(circle);
 
-                                                    }
+                                                    }*/
                                                 }
                                             }
                                         }
@@ -2409,7 +2409,7 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                                                     BoundingBox bb = record.getGeometry().getBox();
 
                                                     if (bb.isPointInBox(mapX, mapY)) {
-                                                        g2.setColor(selectionBoxColour);
+                                                        //g2.setColor(selectionBoxColour);
                                                         polyline = new GeneralPath(GeneralPath.WIND_EVEN_ODD, 5);
                                                         xPoint = (float) (viewAreaULX + (bb.getMinX() - leftCoord) / EWRange * viewAreaWidth);
                                                         yPoint = (float) (viewAreaULY + (topCoord - bb.getMinY()) / NSRange * viewAreaHeight);
@@ -3307,7 +3307,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
             }
         }
         try {
-            WhiteboxGuiClone.wb.updateSelectedFeaturesList((VectorLayerInfo) mapArea.getActiveLayer(), WhiteboxGuiClone.wb.currentShapeFile);
+            WhiteboxGuiClone.wb.updateSelectedFeaturesList((VectorLayerInfo) mapArea.getActiveLayer());
+            WhiteboxGuiClone.wb.changeMapColour();
         } catch (Exception ex) {
             Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -3492,7 +3493,8 @@ public class MapRenderingTool extends JPanel implements Printable, MouseMotionLi
                     panning = true;
                 }
                 try {
-                    WhiteboxGuiClone.wb.updateSelectedFeaturesList((VectorLayerInfo) mapArea.getActiveLayer(), WhiteboxGuiClone.wb.currentShapeFile);
+                    WhiteboxGuiClone.wb.updateSelectedFeaturesList((VectorLayerInfo) mapArea.getActiveLayer());
+                    WhiteboxGuiClone.wb.changeMapColour();
                 } catch (Exception ex) {
                     Logger.getLogger(MapRenderingTool.class.getName()).log(Level.SEVERE, null, ex);
                 }

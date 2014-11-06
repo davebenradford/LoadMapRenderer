@@ -28,7 +28,7 @@ public class BMPHoldingPond extends BMPItem
     private int _pond_year;
 
     public BMPHoldingPond(ResultSet row, int feaIndex, Project project, Scenario scenario) throws SQLException{
-        super(row, feaIndex, BMPType.Holding_Pond, project, scenario);
+        super(row, feaIndex, BMPType.Holding_Ponds, project, scenario);
     }
     
     //public BMPHoldingPond(System.Data.DataRow row, Project project, Scenario scenario) : base(row, BMPType.Hoding_Pond, project, scenario) { }
@@ -212,6 +212,7 @@ public class BMPHoldingPond extends BMPItem
 
     private static String _column_name_name = "MAP_NUMBER";
 
+    @Override
     protected void readData() throws SQLException
     {
         super.readData();

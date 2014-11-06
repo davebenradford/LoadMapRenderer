@@ -297,7 +297,8 @@ public class AttributesFileViewer extends JPanel implements ActionListener, Prop
             //tabs.addTab("Feature Selection", getSelectionCalculator());
 
             mainBox.add(tabs);
-            WhiteboxGuiClone.wb.tableView.add(mainBox, BorderLayout.CENTER);
+            GridBagConstraints gbc = setGbc(new Insets(0, 0, 0, 0), GridBagConstraints.BOTH, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 1.0, 1.0);
+            WhiteboxGuiClone.wb.tableView.add(mainBox, gbc);
 
             JMenuBar menubar = createMenu();
             //this.setJMenuBar(menubar);
@@ -2507,6 +2508,20 @@ public class AttributesFileViewer extends JPanel implements ActionListener, Prop
         listOfMethodReturns.clear();
         variableClassMap.clear();
         setupAutocomplete();
+    }
+
+    private GridBagConstraints setGbc(Insets i, int fill, int a, int xCoord, int yCoord, int wide, int high, double weighX, double weighY) {
+        GridBagConstraints g = new GridBagConstraints();
+        g.insets = i;
+        g.fill = fill;
+        g.anchor = a;
+        g.gridx = xCoord;
+        g.gridy = yCoord;
+        g.gridwidth = wide;
+        g.gridheight = high;
+        g.weightx = weighX;
+        g.weighty = weighY;
+        return g;
     }
 
 }

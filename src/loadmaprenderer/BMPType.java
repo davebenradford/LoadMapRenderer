@@ -12,8 +12,8 @@ package loadmaprenderer;
  */
 public enum BMPType
     {
-        Small_Dam,
-        Holding_Pond,
+        Small_Dams,
+        Holding_Ponds,
         Grazing,
         Grazing_Subbasin,  //just for result display
         Tillage_Subbasin,

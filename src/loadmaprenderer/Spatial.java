@@ -22,7 +22,7 @@ import java.util.Map;
  * @author Shao
  */
 public class Spatial {
-    private static Connection conn_spatial = Query.OpenConnection(Project.GetSpatialDB());
+    private static Connection conn_spatial = Query.OpenConnection(Project.getSpatialDB());
     
     private static String FieldAreaTable = "field_area";
     private static String FarmAreaTable = "farm_area";
@@ -258,8 +258,8 @@ public class Spatial {
         ResultLevelType shapeType = ResultLevelType.Field;
         switch (type)
         {
-            case Small_Dam:
-            case Holding_Pond:
+            case Small_Dams:
+            case Holding_Ponds:
             case Grazing_Subbasin:
                 return 0.0;
             case Tillage_Subbasin:
@@ -325,8 +325,8 @@ public class Spatial {
         ResultLevelType shapeType = ResultLevelType.Field;
         switch (type)
         {
-            case Small_Dam:
-            case Holding_Pond:
+            case Small_Dams:
+            case Holding_Ponds:
             case Grazing_Subbasin:
                 return 0.0;
             case Tillage_Subbasin:
@@ -413,8 +413,8 @@ public class Spatial {
 
         BMPType type = items.get(0).getType();
 
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond ||
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds ||
             type == BMPType.Grazing)
             return new ArrayList<Integer>();
 
@@ -445,8 +445,8 @@ public class Spatial {
 
         BMPType type = items.get(0).getType();
 
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond)
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds)
             return new ArrayList<Integer>();
 
         List<Integer> originalIDs = new ArrayList<Integer>();
@@ -481,8 +481,8 @@ public class Spatial {
 
         BMPType type = items.get(0).getType();
 
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond)
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds)
             return new ArrayList<Integer>();
 
         List<Integer> originalIDs = new ArrayList<Integer>();
@@ -515,8 +515,8 @@ public class Spatial {
     public static List<Integer> GetField(List<Integer> ids, BMPType type) throws Exception{
         if (ids.isEmpty()) return new ArrayList<Integer>();
 
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond ||
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds ||
             type == BMPType.Grazing)
             return new ArrayList<Integer>();
 
@@ -541,8 +541,8 @@ public class Spatial {
     public static List<Integer> GetHRU(List<Integer> ids, BMPType type) throws Exception{
         if (ids.isEmpty()) return new ArrayList<Integer>();
 
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond)
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds)
             return new ArrayList<Integer>();
 
         switch (type)
@@ -571,8 +571,8 @@ public class Spatial {
     public static List<Integer> GetSubbasin(List<Integer> ids, BMPType type) throws Exception{
         if (ids.isEmpty()) return new ArrayList<Integer>();
 
-        if (type == BMPType.Small_Dam ||
-            type == BMPType.Holding_Pond)
+        if (type == BMPType.Small_Dams ||
+            type == BMPType.Holding_Ponds)
             return new ArrayList<Integer>();
 
         switch (type)

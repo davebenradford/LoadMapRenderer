@@ -84,7 +84,7 @@ public class ScenarioSWATModel extends ScenarioResult {
         long startTime = System.currentTimeMillis();
         
         // Write the webs.webs file based on Scenario design
-        if (ScenarioDesign.GenerateWEBsText(scenario)) {
+        if (scenario.getScenarioDesign().GenerateWEBsText(scenario)) {
             System.out.println("Link file (webs.webs) created successfully!");
         } else {
             return;
@@ -92,11 +92,11 @@ public class ScenarioSWATModel extends ScenarioResult {
         
         StringBuilder InputText = new StringBuilder();
         StringBuilder ErrText = new StringBuilder(); 
-        File SWATExecutable = new File(Project.GetSWATExecutive());
+        File SWATExecutable = new File(Project.getSWATExecutive());
         try {
             
             ProcessBuilder SWATBuilder = new ProcessBuilder(SWATExecutable.getAbsolutePath(), "-i", "input", "-o", "output");
-            SWATBuilder.directory(new File(Project.GetSWATExecutive()).getParentFile().getAbsoluteFile());
+            SWATBuilder.directory(new File(Project.getSWATExecutive()).getParentFile().getAbsoluteFile());
             
             Process SWATProcess = SWATBuilder.start();
             System.out.print("SWAT model is running...\n");
@@ -195,7 +195,7 @@ public class ScenarioSWATModel extends ScenarioResult {
     private void createFieldResult() throws Exception {
         //get hru swat result
         ResultSet hruResult = getCorrepondingSWATResultTable(SWATResultType.hru, "", true);
-        Connection conn = Query.OpenConnection(Project.GetSpatialDB());
+        Connection conn = Query.OpenConnection(Project.getSpatialDB());
         
         if (!hruResult.next()) return;
         
@@ -258,7 +258,7 @@ public class ScenarioSWATModel extends ScenarioResult {
     }
     
     private void reCalculateFieldResults(FieldSWATResults r) throws SQLException { // !! ref
-        FieldWeights fieldWeights = new FieldWeights(Project.GetSpatialDB());
+        FieldWeights fieldWeights = new FieldWeights(Project.getSpatialDB());
 
         r.ReCalculateWithWeight(fieldWeights);
     }
@@ -266,7 +266,7 @@ public class ScenarioSWATModel extends ScenarioResult {
     private void createFarmResult() throws Exception {
         //get field swat result
         ResultSet fieldResult = getCorrepondingSWATResultTable(SWATResultType.field, "", true);
-        Connection conn = Query.OpenConnection(Project.GetSpatialDB());
+        Connection conn = Query.OpenConnection(Project.getSpatialDB());
         
         if (!fieldResult.next()) return;
 
@@ -324,7 +324,7 @@ public class ScenarioSWATModel extends ScenarioResult {
     private void createGrazingSubbasinResult() throws Exception  {
         //get field swat result
         ResultSet hruResult = getCorrepondingSWATResultTable(SWATResultType.hru, "", true);
-        Connection conn = Query.OpenConnection(Project.GetSpatialDB());
+        Connection conn = Query.OpenConnection(Project.getSpatialDB());
         
         if (!hruResult.next()) return;
         
@@ -400,7 +400,7 @@ public class ScenarioSWATModel extends ScenarioResult {
     private void createGrazingResult() throws Exception {
         //get field swat result
         ResultSet subbasinGrazingResult = getCorrepondingSWATResultTable(SWATResultType.grazing_subbasin, "", true);
-        Connection conn = Query.OpenConnection(Project.GetSpatialDB());
+        Connection conn = Query.OpenConnection(Project.getSpatialDB());
         
         if (!subbasinGrazingResult.next()) return;
 
@@ -476,7 +476,7 @@ public class ScenarioSWATModel extends ScenarioResult {
     private ResultSet resultGrazingSubbasin;
     private ResultSet resultRchEntire;
     
-    private static Connection conn_spatial = Query.OpenConnection(Project.GetSpatialDB());
+    private static Connection conn_spatial = Query.OpenConnection(Project.getSpatialDB());
     
     private static String FieldAreaTable = "field_area";
     private static String FarmAreaTable = "farm_area";
@@ -698,9 +698,9 @@ public class ScenarioSWATModel extends ScenarioResult {
         {
             try {
                 if (offSiteResults == null) offSiteResults = new HashMap<BMPType, Map<String, List<ResultDataPair>>>();
-                offSiteResults.put(BMPType.Small_Dam, new HashMap<String, List<ResultDataPair>>());
+                offSiteResults.put(BMPType.Small_Dams, new HashMap<String, List<ResultDataPair>>());
                 for (int i = SWATResultColumnType.getInt(SWATResultColumnType.water); i <= SWATResultColumnType.getInt(SWATResultColumnType.TN); i++)
-                    offSiteResults.get(BMPType.Small_Dam).put(SWATResultColumnType.getEnum(i).toString(), new ArrayList<ResultDataPair>());
+                    offSiteResults.get(BMPType.Small_Dams).put(SWATResultColumnType.getEnum(i).toString(), new ArrayList<ResultDataPair>());
                 ResultSet rs = getCorrepondingSWATResultTable(SWATResultType.reach, "", false);
                 while (rs.next())
                 {
@@ -710,13 +710,13 @@ public class ScenarioSWATModel extends ScenarioResult {
                         double value = rs.getDouble(i + 2);                            
                         if (i == SWATResultColumnType.getInt(SWATResultColumnType.water))
                             value *= 31536000.0;  //m^3/s --> m^3
-                        offSiteResults.get(BMPType.Small_Dam).get(SWATResultColumnType.getEnum(i).toString()).add(new ResultDataPair(year, value));
+                        offSiteResults.get(BMPType.Small_Dams).get(SWATResultColumnType.getEnum(i).toString()).add(new ResultDataPair(year, value));
                     }
                 }
                 
-                offSiteResults.put(BMPType.Holding_Pond, offSiteResults.get(BMPType.Small_Dam));
-                offSiteResults.put(BMPType.Grazing, offSiteResults.get(BMPType.Small_Dam));
-                offSiteResults.put(BMPType.Tillage_Field, offSiteResults.get(BMPType.Small_Dam));
+                offSiteResults.put(BMPType.Holding_Ponds, offSiteResults.get(BMPType.Small_Dams));
+                offSiteResults.put(BMPType.Grazing, offSiteResults.get(BMPType.Small_Dams));
+                offSiteResults.put(BMPType.Tillage_Field, offSiteResults.get(BMPType.Small_Dams));
             } catch (SQLException ex) {
                 Logger.getLogger(ScenarioSWATModel.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -740,7 +740,7 @@ public class ScenarioSWATModel extends ScenarioResult {
             String filter, boolean closeFirst){
         SWATResultType resultType = SWATResultType.reservoir; //for small dam
 
-        if (type == BMPType.Holding_Pond)
+        if (type == BMPType.Holding_Ponds)
             resultType = SWATResultType.pointsource;
         else if (type == BMPType.Grazing)
             resultType = SWATResultType.grazing;

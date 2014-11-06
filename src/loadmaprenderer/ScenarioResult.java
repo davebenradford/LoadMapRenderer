@@ -42,7 +42,7 @@ public abstract class ScenarioResult extends SQLiteDatabase{
     protected int startYear = -1;
     protected int endYear = -1;
     
-    private static Connection conn_spatial = Query.OpenConnection(Project.GetSpatialDB());
+    private static Connection conn_spatial = Query.OpenConnection(Project.getSpatialDB());
     
     protected abstract ResultSet getStartEndYearTable();
     
@@ -116,7 +116,7 @@ public abstract class ScenarioResult extends SQLiteDatabase{
         double value = 0.0;
         try
         {
-            if (type == BMPType.Small_Dam && (compareScenario != null || reservoirGotoReach) && this.getClass() == ScenarioSWATModel.class)
+            if (type == BMPType.Small_Dams && (compareScenario != null || reservoirGotoReach) && this.getClass() == ScenarioSWATModel.class)
                 reservoirGotoReach = true;
 
             if (Query.ComputeRS(rs, filter).next())
@@ -137,12 +137,12 @@ public abstract class ScenarioResult extends SQLiteDatabase{
 
         double compareValue = 0.0;
         if (compareScenario != null)
-            compareValue = compareScenario.GetResult().GetAverageResult(
+            compareValue = compareScenario.getResult().GetAverageResult(
                 project, type, resultColumn, id, startYear, endYear, null, reservoirGotoReach);
 
         value -= compareValue;
 
-        if (type == BMPType.Small_Dam && resultColumn.equals(SWATResultColumnType.water))
+        if (type == BMPType.Small_Dams && resultColumn.equals(SWATResultColumnType.water))
             value *= 31536000.0;  //m^3/s --> m^3
 
         System.err.println(
@@ -195,7 +195,7 @@ public abstract class ScenarioResult extends SQLiteDatabase{
         ResultSet rows = Query.ComputeRS(rs, filter); // !!
         List<ResultDataPair> results = new ArrayList<ResultDataPair>();
 
-        if (type == BMPType.Small_Dam && (compareScenario != null || reservoirGotoReach) && this instanceof ScenarioSWATModel)
+        if (type == BMPType.Small_Dams && (compareScenario != null || reservoirGotoReach) && this instanceof ScenarioSWATModel)
             reservoirGotoReach = true;
 
         
@@ -223,9 +223,9 @@ public abstract class ScenarioResult extends SQLiteDatabase{
             results =
                 getDifference(
                 results,
-                compareScenario.GetResult().GetResults(project, type, resultColumn, id, startYear, endYear, null, reservoirGotoReach));
+                compareScenario.getResult().GetResults(project, type, resultColumn, id, startYear, endYear, null, reservoirGotoReach));
 
-        if (type == BMPType.Small_Dam && resultColumn.equals(SWATResultColumnType.water))
+        if (type == BMPType.Small_Dams && resultColumn.equals(SWATResultColumnType.water))
         {
             for (ResultDataPair p : results)
                 p.setData(p.getData()* 31536000.0);  //m^3/s --> m^3
@@ -280,7 +280,7 @@ public abstract class ScenarioResult extends SQLiteDatabase{
                     result =
                         getDifference(
                         result,
-                        compareScenario.GetResult().getOffSiteResults(
+                        compareScenario.getResult().getOffSiteResults(
                         project,type, resultColumn, startYear, endYear, null));
 
                 return result;

@@ -66,7 +66,8 @@ public class ScenarioDialog {
         GridBagConstraints gbc = setGbc(new Insets(4, 36, 4, 4), GridBagConstraints.NONE, GridBagConstraints.NORTHWEST, 0, 0, 1, 1, 0.0, 1.0);
         frame.add(nameLbl, gbc);
         
-        nameFld = createField(new JTextField("New Scenario"), "Scenario Name");
+        String scenName = "Scenario " + String.valueOf(WhiteboxGuiClone.wb.project.getMaxID() + 1);
+        nameFld = createField(new JTextField("New Scenario"), scenName);
         gbc = setGbc(new Insets(4, 4, 4, 4), GridBagConstraints.HORIZONTAL, GridBagConstraints.NORTHWEST, 1, 0, 2, 1, 1.0, 1.0);
         frame.add(nameFld, gbc);
         

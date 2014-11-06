@@ -34,7 +34,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
     private boolean hasTillage = false;
     private boolean hasForageConversion = false;    
     
-    private static Connection connSpatial = Query.OpenConnection(Project.GetSpatialDB());
+    private static Connection connSpatial = Query.OpenConnection(Project.getSpatialDB());
     
     public boolean GetHasSmallDam(){
         return hasSmallDam;
@@ -73,8 +73,8 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
     
     
     public void PrepareTables() {
-            prepareTable(BMPType.Small_Dam);
-            prepareTable(BMPType.Holding_Pond);
+            prepareTable(BMPType.Small_Dams);
+            prepareTable(BMPType.Holding_Ponds);
             prepareTable(BMPType.Grazing);
             prepareTable(BMPType.Tillage_Field);
             prepareTable(BMPType.Forage_Field);
@@ -89,7 +89,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
 
         switch (type)
         {
-            case Small_Dam:
+            case Small_Dams:
                 AccessColumn ac_dam_1 = new AccessColumn();
                 ac_dam_1.setColumnName(columnNameSmallDamEmbankment);ac_dam_1.setType(Double.TYPE);
                 AccessColumn ac_dam_2 = new AccessColumn();
@@ -97,7 +97,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
                 Query.PrepareTable(GetDatabasePath(), tableNameSmallDam, _id, ac_dam_1, ac_dam_2);
                 hasSmallDam = false;
                 break;
-            case Holding_Pond:
+            case Holding_Ponds:
                 AccessColumn ac_pond_1 = new AccessColumn();
                 ac_pond_1.setColumnName(columnNameHoldingPondHRU);ac_pond_1.setType(Integer.TYPE);
                 AccessColumn ac_pond_2 = new AccessColumn();
@@ -262,7 +262,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
             if (isTillage)
             {
                 sb.append(",");
-                if (scenario.GetTillageType() == TillageType.Conventional)
+                if (scenario.getTillageType() == TillageType.Conventional)
                     sb.append(56);  //Mouldboard Plow	 MLDBGE10
                 else
                     sb.append(4); //Minimal till	 MINIMALTILL
@@ -298,11 +298,11 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
 
         //selected hrus           
         List<Integer> fields = null;
-        if (scenario.GetCropBMPLevel() == BMPSelectionLevelType.Field)
+        if (scenario.getCropBMPLevel() == BMPSelectionLevelType.Field)
             fields = ids;
-        else if (scenario.GetCropBMPLevel() == BMPSelectionLevelType.Farm)
+        else if (scenario.getCropBMPLevel() == BMPSelectionLevelType.Farm)
             fields = Spatial.GetRelationIDs(ResultLevelType.Farm, ResultLevelType.Field, ids, false);
-        else if (scenario.GetCropBMPLevel() == BMPSelectionLevelType.Subbasin)
+        else if (scenario.getCropBMPLevel() == BMPSelectionLevelType.Subbasin)
             fields = Spatial.GetRelationIDs(ResultLevelType.Subbasin, ResultLevelType.Field, ids, false);
         else
             throw new Exception("Unknown Level.");
@@ -323,7 +323,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
             {
                 sb.append(",");
 
-                if (scenario.GetTillageType() == TillageType.Conventional)
+                if (scenario.getTillageType() == TillageType.Conventional)
                     sb.append(56);  //Mouldboard Plow	 MLDBGE10
                 else
                     sb.append(4); //Minimal till	 MINIMALTILL
@@ -347,10 +347,10 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         {
             switch (type)
             {
-                case Small_Dam:
+                case Small_Dams:
                     sb.append(SQLPrefixsmalldam + item.InsertSQL());
                     break;
-                case Holding_Pond:
+                case Holding_Ponds:
                     sb.append(SQLPrefixHoldingPond + item.InsertSQL());
                     break;
                 case Grazing:
@@ -370,8 +370,8 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         insert(conn, sb.toString());
 
         //set status
-        if (type == BMPType.Small_Dam) hasSmallDam = true;
-        if (type == BMPType.Holding_Pond) hasHoldingPond = true;
+        if (type == BMPType.Small_Dams) hasSmallDam = true;
+        if (type == BMPType.Holding_Ponds) hasHoldingPond = true;
         if (type == BMPType.Grazing) hasGrazing = true;
     }
 
@@ -383,10 +383,10 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         {
             switch (type)
             {
-                case Small_Dam:
+                case Small_Dams:
                     sb.append(SQLPrefixsmalldamID + String.valueOf(id) + ");");
                     break;
-                case Holding_Pond:
+                case Holding_Ponds:
                     sb.append(SQLPrefixHoldingPondID + String.valueOf(id) + ");");
                     break;
                 case Grazing:
@@ -406,8 +406,8 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         insert(conn, sb.toString());
 
         //set status
-        if (type == BMPType.Small_Dam) hasSmallDam = true;
-        if (type == BMPType.Holding_Pond) hasHoldingPond = true;
+        if (type == BMPType.Small_Dams) hasSmallDam = true;
+        if (type == BMPType.Holding_Ponds) hasHoldingPond = true;
         if (type == BMPType.Grazing) hasGrazing = true;
     }
 
@@ -425,7 +425,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         saveCropBMPDesign(conn, items, scenario);
     }
 
-    public void SaveDesignIDs(Connection conn,List<Integer> ids, BMPType type, Project project, Scenario scenario) throws Exception{
+    public void SaveDesignIDs(Connection conn,List<Integer> ids, BMPType type, Scenario scenario) throws Exception{
         //clear current data
         prepareTable(type);
 
@@ -439,7 +439,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         saveCropBMPDesign(conn, ids, type,scenario);
     }
 
-    public static List<BMPItem> ReadNonCropDesign(Scenario scenario, BMPType type) throws Exception{
+    public List<BMPItem> ReadNonCropDesign(Scenario scenario, BMPType type) throws Exception{
         List<BMPItem> results = new ArrayList<>();
 
         if(BMPItem.IsCropBMP(type))
@@ -447,16 +447,16 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
 
         ResultSet rs = Query.GetDataTable(
             "select * from " + BMPDesignTableName(type),
-            scenario.GetScenarioDB());
+            scenario.getScenarioDB());
 
         while(rs.next())
         {
             switch(type)
             {
-                case Small_Dam:
+                case Small_Dams:
                     results.add(new BMPSmallDam(rs,-1,null,null));
                     break;
-                case Holding_Pond:
+                case Holding_Ponds:
                     results.add(new BMPHoldingPond(rs,-1,null,null));
                     break;
                 case Grazing:
@@ -472,9 +472,13 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
     }
 
     private static Map<BMPType, List<Integer>> design;
-
     
-    public static List<Integer> ReadDesign(Project p, Scenario s, BMPType type) throws Exception{          
+    public Map<BMPType, List<Integer>> getDesign(){
+        if (design.isEmpty()) return new HashMap();
+        return design;
+    }
+    
+    public List<Integer> ReadDesign(Scenario s, BMPType type) throws Exception{          
         //first try to read from design
         List<Integer> results = null;
         if (design != null && design.containsKey(type)) {
@@ -485,29 +489,29 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         if (design == null) design = new HashMap<BMPType, List<Integer>>();
 
         results = new ArrayList<Integer>();
-        if (BMPItem.IsCropBMP(type) && s.GetCropBMPLevel() == BMPSelectionLevelType.Unknown) 
+        if (BMPItem.IsCropBMP(type) && s.getCropBMPLevel() == BMPSelectionLevelType.Unknown) 
         {
             design.put(type, results);
             return results;
         }
-        if (BMPItem.IsCropBMP(type) && !type.toString().toLowerCase().contains(s.GetCropBMPLevel().toString().toLowerCase()))
+        if (BMPItem.IsCropBMP(type) && !type.toString().toLowerCase().contains(s.getCropBMPLevel().toString().toLowerCase()))
         {
             //first read design in the design level
             BMPType typeDesign = BMPType.Tillage_Farm;
-            if (s.GetCropBMPLevel() == BMPSelectionLevelType.Field)
+            if (s.getCropBMPLevel() == BMPSelectionLevelType.Field)
                 if (BMPItem.IsTillage(type)) typeDesign = BMPType.Tillage_Field;
                 else typeDesign = BMPType.Forage_Field;
-            else if (s.GetCropBMPLevel() == BMPSelectionLevelType.Farm)
+            else if (s.getCropBMPLevel() == BMPSelectionLevelType.Farm)
                 if (BMPItem.IsTillage(type)) typeDesign = BMPType.Tillage_Farm;
                 else typeDesign = BMPType.Forage_Farm;
-            else if (s.GetCropBMPLevel() == BMPSelectionLevelType.Subbasin)
+            else if (s.getCropBMPLevel() == BMPSelectionLevelType.Subbasin)
                 if (BMPItem.IsTillage(type)) typeDesign = BMPType.Tillage_Subbasin;
                 else typeDesign = BMPType.Forage_Subbasin;
 
-            List<Integer> designs = ReadDesign(p, s, typeDesign);
+            List<Integer> designs = ReadDesign(s, typeDesign);
 
             //convert to current level
-            ResultLevelType designLevel = ResultLevelType.valueOf(s.GetCropBMPLevel().toString());
+            ResultLevelType designLevel = ResultLevelType.valueOf(s.getCropBMPLevel().toString());
             ResultLevelType currentLevel = ResultLevelType.valueOf(type.toString().split("_")[1]);
 
             for (int design : designs){
@@ -523,7 +527,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
 
         ResultSet rs = Query.GetDataTable(
             "select * from " + BMPDesignTableName(type),
-            s.GetScenarioDB());
+            s.getScenarioDB());
         while(rs.next())
         {
             RowItem item = new RowItem(rs);
@@ -531,18 +535,24 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         }
         design.put(type, results);
         return results;
-    }    
+    }
+    
+    public void ReadDesign(Scenario s) throws Exception{
+        for (BMPType type : BMPType.values()){
+            ReadDesign(s,type);
+        }
+    }
 
-    public boolean IsInDesign(Project p, Scenario s, BMPType type, int id) throws Exception{
-        return ReadDesign(p, s, type).contains(id);
+    public boolean IsInDesign(Scenario s, BMPType type, int id) throws Exception{
+        return ReadDesign(s, type).contains(id);
     }
 
     private static String idSelectFormat = "select distinct %s from %s order by %s";
 
-    public static boolean GenerateWEBsText(Scenario s) throws IOException, SQLException, ClassNotFoundException{
+    public boolean GenerateWEBsText(Scenario s) throws IOException, SQLException, ClassNotFoundException{
         StringBuilder sb = new StringBuilder();
         
-        Connection conn = Query.OpenConnection(s.GetScenarioDB());
+        Connection conn = Query.OpenConnection(s.getScenarioDB());
         
         String sep = System.getProperty("line.separator");
         //some information
@@ -550,11 +560,11 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
 
         //scenario database
         sb.append("Scenario Database" + sep);
-        sb.append(s.GetScenarioDB() + sep);
+        sb.append(s.getScenarioDB() + sep);
 
         //base scenario
         sb.append("Base Scenario" + sep);
-        sb.append(s.GetBMPScenerioBaseType() == BMPScenerioBaseType.Conventional ? "1" : "0");
+        sb.append(s.getBMPScenerioBaseType() == BMPScenarioBaseType.Conventional ? "1" : "0");
         sb.append(sep);
 
         //small dam   
@@ -570,24 +580,24 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
 
         //Grazing
         sb.append("Grazing (*.MGT)" + sep);
-        sb.append(getSelectedIDs(conn, "grazing_hrus", "ID") + sep);
+        sb.append(getSelectedIDs(conn, "grazing_HRUs", "ID") + sep);
 
         //Tillage
         sb.append("Tillage" + sep);
         sb.append("Tillage Type & CNOP" + sep);
-        sb.append(s.GetTillageType() == TillageType.Conventional ? "56" : "4"); //bmp tillage type
-        sb.append(s.GetTillageType() == TillageType.Conventional ? " 1.1" : " 1.02"); //bmp tillage type
+        sb.append(s.getTillageType() == TillageType.Conventional ? "56" : "4"); //bmp tillage type
+        sb.append(s.getTillageType() == TillageType.Conventional ? " 1.1" : " 1.02"); //bmp tillage type
         sb.append(sep);
         sb.append("HRUs (*.MGT)" + sep);
-        sb.append(getSelectedIDs(conn, "tillage_hrus", "ID") + sep);
+        sb.append(getSelectedIDs(conn, "tillage_HRUs", "ID") + sep);
 
         //Forage Conversion
         sb.append("Forage Conversion (*.MGT)" + sep);
-        sb.append(getSelectedIDs(conn, "forage_hrus", "ID"));
+        sb.append(getSelectedIDs(conn, "forage_HRUs", "ID"));
         
         try {
             //create an print writer for writing to a file
-            PrintWriter out = new PrintWriter(new FileWriter(Project.GetWEBs()));
+            PrintWriter out = new PrintWriter(new FileWriter(Project.getWEBs()));
 
             //output to the webs.webs
             out.println(sb.toString());
@@ -602,7 +612,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
         return false;
     }
     
-    private static String getSelectedIDs(Connection conn, String tableName, String columnName) throws SQLException, ClassNotFoundException{
+    private String getSelectedIDs(Connection conn, String tableName, String columnName) throws SQLException, ClassNotFoundException{
         String query = String.format(idSelectFormat, columnName, tableName, columnName);
         
         //Build the data table;
@@ -616,9 +626,7 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
             
         }
         
-        if (!rs.next()) {
-            return "0" + System.getProperty("line.separator") + "";
-        }
+        if (!rs.next()) return "0" + System.getProperty("line.separator") + "";
         else
         {
             StringBuilder sb = new StringBuilder();
@@ -642,9 +650,9 @@ public class ScenarioDesign extends ScenarioDatabaseStructure {
     public static String GetBMPTableName(BMPType type){
         switch (type)
         {
-            case Small_Dam:
+            case Small_Dams:
                 return tableNameSmallDam;
-            case Holding_Pond:
+            case Holding_Ponds:
                 return tableNameHoldingPond;
             case Grazing:
                 return tableNameGrazing;

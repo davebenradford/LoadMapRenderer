@@ -39,9 +39,9 @@ public abstract class ScenarioDatabaseStructure extends SQLiteDatabase{
     public static String BMPEconomicResultTableName(BMPType type) {
         switch (type)
         {
-            case Small_Dam:
+            case Small_Dams:
                 return tableNameSmallDamEconomic;
-            case Holding_Pond:
+            case Holding_Ponds:
                 return tableNameHoldingPondEconomic;
             case Grazing:
                 return tableNameGrazingEconomic;
@@ -64,9 +64,9 @@ public abstract class ScenarioDatabaseStructure extends SQLiteDatabase{
     public static String BMPDesignTableName(BMPType type)  {
         switch (type)
         {
-            case Small_Dam:
+            case Small_Dams:
                 return tableNameSmallDam;
-            case Holding_Pond:
+            case Holding_Ponds:
                 return tableNameHoldingPond;
             case Grazing:
                 return tableNameGrazing;
@@ -83,29 +83,29 @@ public abstract class ScenarioDatabaseStructure extends SQLiteDatabase{
         }
     }
     
-    public static String columnNameID = "ID";
+    public static String columnNameID = "id";
     public static String columnNameYear = "Year";
-    public static String columnNameCost = "Cost";
+    public static String columnNameCost = "cost";
 
-    public static String columnNameSmallDamEmbankment = "Embankment";
-    public static String columnNameSmallDamLifetime = "LifeTime";
+    public static String columnNameSmallDamEmbankment = "embankment";
+    public static String columnNameSmallDamLifetime = "life_time";
 
-    public static String columnNameHoldingPondHRU = "HRU";
-    public static String columnNameHoldingPondCattles = "Cattles";
-    public static String columnNameHoldingPondClayLiner = "ClayLiner";
-    public static String columnNameHoldingPondPlasticLn = "PlasticLn";
-    public static String columnNameHoldingPondWireFence = "WireFence";
-    public static String columnNameHoldingPondDistance = "Distance";
-    public static String columnNameHoldingPondTrenching = "Trenching";
-    public static String columnNameHoldingPondPondYrs = "PondYrs";
-    public static String columnNameHoldingPondAnnualCost = "AnnualCost";
-    public static String columnNameHoldingPondMaintenance = "Maintenance";
-    public static String columnNameHoldingPondTotalCost = "TotalCost";
+    public static String columnNameHoldingPondHRU = "hru";
+    public static String columnNameHoldingPondCattles = "cattle";
+    public static String columnNameHoldingPondClayLiner = "clay_liner";
+    public static String columnNameHoldingPondPlasticLn = "plastic_ln";
+    public static String columnNameHoldingPondWireFence = "wire_fence";
+    public static String columnNameHoldingPondDistance = "distance";
+    public static String columnNameHoldingPondTrenching = "trenching";
+    public static String columnNameHoldingPondPondYrs = "pond_yrs";
+    public static String columnNameHoldingPondAnnualCost = "annual_cost";
+    public static String columnNameHoldingPondMaintenance = "maintenance";
+    public static String columnNameHoldingPondTotalCost = "total_cost";
 
-    public static String columnNameGrazingArea = "GrazingHa";
-    public static String columnNameGrazingUnitCost = "UnitCost";
+    public static String columnNameGrazingArea = "grazing_ha";
+    public static String columnNameGrazingUnitCost = "unit_cost";
 
-    protected static String columnNameTillageType = "Tillage";
+    protected static String columnNameTillageType = "tillage";
 
     protected static String columnNameYield = "Yield";
     protected static String columnNameRevenue = "Revenue";

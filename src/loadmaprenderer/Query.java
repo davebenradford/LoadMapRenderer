@@ -241,7 +241,7 @@ public class Query{
         return rs_new;    
     }
     
-    public static Map<Integer, Interval> GetQuantileIntervals(List<Double> values, int intervalNum){
+    public static Map<Integer, Interval> getQuantileIntervals(List<Double> values, int intervalNum){
         System.out.println("-----------Start calculating intervals-----------");
         Map<Integer, Interval> intervals = new HashMap();
         System.out.println("Input values size: " + values.size());
@@ -302,7 +302,7 @@ public class Query{
         return intervals;
     }
     
-    public static int CheckInterval(Map<Integer, Interval> intervals, double checkValue){
+    public static int checkInterval(Map<Integer, Interval> intervals, double checkValue){
         for (int level : intervals.keySet()){
             Interval interval = intervals.get(level);
             if (checkValue >= interval.GetLower() 
